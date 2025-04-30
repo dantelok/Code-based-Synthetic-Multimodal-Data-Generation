@@ -1,0 +1,5 @@
+cohere
+seaborn
+pandas
+numpy
+matplotlib
