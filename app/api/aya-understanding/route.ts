@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { CohereClientV2 } from 'cohere-ai';
 
 export async function POST(request: Request) {
   try {
-    const { prompt } = await request.json();
+    const { prompt, imageBase64 } = await request.json();
 
     const COHERE_API_KEY = process.env.COHERE_API_KEY;
     
@@ -10,25 +11,35 @@ export async function POST(request: Request) {
       throw new Error('Cohere API key not found');
     }
 
-    const response = await fetch('https://api.cohere.ai/v1/chat', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${COHERE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'command',
-        messages: [
-          {
-            role: 'user',
-            content: prompt || 'Hello'
-          }
-        ]
-      })
+    const cohere = new CohereClientV2({
+      token: COHERE_API_KEY,
     });
 
-    const data = await response.json();
-    const response_text = data.message?.content?.[0]?.text || '';
+    // Format the image as a data URI
+    const imageDataUri = `data:image/jpeg;base64,${imageBase64}`;
+
+    const response = await cohere.chat({
+      model: 'c4ai-aya-vision-8b',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              "type": "text",
+              "text": prompt || "what's in this picture?"
+            },
+            {
+              "type": "image_url",
+              "imageUrl": {
+                "url": imageDataUri
+              }
+            }
+          ],
+        },
+      ],
+    });
+
+    const response_text = response.message?.content?.[0]?.text || '';
 
     return NextResponse.json({
       response: response_text
@@ -40,4 +51,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-} 
+}

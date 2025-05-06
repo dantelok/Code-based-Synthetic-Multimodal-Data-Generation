@@ -68,11 +68,10 @@ export default function Home() {
           <div ref={messagesEndRef} />
         </div>
       </div>
-      <div className="fixed bottom-0 left-0 right-0 bg-[#1C1C1E] z-50 m-5 rounded-lg">
-        <div className="container mx-auto px-4 py-4">
-          <Prompt onSend={handleSendMessage} />
-        </div>
-      </div>
+      <div className="fixed inset-x-4 bottom-4 bg-[#1C1C1E] z-50 rounded-lg px-3 py-2 m-5 safe‑area-inset-bottom">
+  <Prompt onSend={handleSendMessage} />
+</div>
+
     </div>
   );
 }

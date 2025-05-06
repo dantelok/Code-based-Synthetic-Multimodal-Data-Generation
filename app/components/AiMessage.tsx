@@ -47,6 +47,8 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
   const [chartCode, setChartCode] = useState<string>('');
   const [chartImage, setChartImage] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
+  const [imageAnalysis, setImageAnalysis] = useState<string>('');
+  const [imageAnalysisLoading, setImageAnalysisLoading] = useState(false);
 
   // Memoize selected data
   const selectedData = useMemo(() => {
@@ -170,11 +172,50 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     } else if (fileType === 'image' && fileData) {
       const url = URL.createObjectURL(fileData);
       setImageUrl(url);
+      
+      // Process image analysis
+      const analyzeImage = async () => {
+        setImageAnalysisLoading(true);
+        try {
+          // Convert image to base64
+          const reader = new FileReader();
+          reader.readAsDataURL(fileData);
+          reader.onloadend = async () => {
+            const base64data = reader.result as string;
+            const base64Image = base64data.split(',')[1]; // Remove the data URL prefix
+            
+            const response = await fetch('/api/aya-understanding', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                prompt: prompt || 'Describe this image in detail',
+                imageBase64: base64Image
+              }),
+            });
+            
+            if (!response.ok) {
+              throw new Error('Failed to analyze image');
+            }
+            
+            const data = await response.json();
+            setImageAnalysis(data.response);
+          };
+        } catch (error) {
+          console.error('Error analyzing image:', error);
+          setError('Failed to analyze the image. Please try again.');
+        } finally {
+          setImageAnalysisLoading(false);
+        }
+      };
+      
+      analyzeImage();
     }
-  }, [fileType, fileData]);
+  }, [fileType, fileData, prompt]);
 
   const renderTable = () => (
-    <div ref={parentRef} className="h-[400px] overflow-auto scrollbar-hide">
+    <div ref={parentRef} className="h-[400px] overflow-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-400/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-400/50">
       <div
         style={{
           height: `${rowVirtualizer.getTotalSize()}px`,
@@ -258,8 +299,14 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     return (
       <div className="flex gap-2 p-4">
         <div>
-          <Avatar className="w-14 h-14" >
-            <AvatarImage src="/cohere.jpg" alt="AI Assistant"/>
+          <Avatar className="w-14 h-14">
+            <AvatarImage 
+              src="/cohere.jpg" 
+              alt="AI Assistant"
+              className="w-full h-full"
+              width={56}
+              height={56}
+            />
             <AvatarFallback>AI</AvatarFallback>
           </Avatar>
         </div>
@@ -328,18 +375,14 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                      <div className="space-y-4">
                        <div className="rounded-md overflow-hidden border-2 border-red-500">
                          <CodeHighlight code={String(chartCode)} />
-             
-                         {/* ✅ Wrap PythonExecutor in a div */}
-                         <div className="pt-4">
-                           <PythonExecutor code={String(chartCode)} data={selectedData} />
-                         </div>
-             
-                         <h1>CHART SHOULD BE HERE</h1>
                        </div>
                      </div>
                    </AccordionContent>
                  </AccordionItem>
                </Accordion>
+               <div className="pt-4">
+                           <PythonExecutor code={String(chartCode)} data={selectedData} />
+                         </div>
              </div>
              
               )}
@@ -350,20 +393,46 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     );
   }
 
-  // For image files, just show the image (and future Aya Vision output)
+  // For image files, show the image and analysis
   if (fileType === 'image' && imageUrl) {
     return (
       <div className="flex gap-2 p-4">
         <div>
-          <Avatar>
-            <AvatarImage src="/cohere.jpg" alt="AI Assistant" />
+          <Avatar className="w-14 h-14">
+            <AvatarImage 
+              src="/cohere.jpg" 
+              alt="AI Assistant"
+              className="w-full h-full"
+              width={56}
+              height={56}
+            />
             <AvatarFallback>AI</AvatarFallback>
           </Avatar>
         </div>
         <div className="flex-1">
           <div className="space-y-4">
-            <img src={imageUrl} alt="Uploaded image" className="max-w-full rounded-lg" />
-            {/* TODO: Add Aya Vision analysis results here */}
+            <Card className="overflow-hidden">
+              <CardContent className="p-4">
+                <img src={imageUrl} alt="Uploaded image" className="max-w-full rounded-lg mb-4" />
+                
+                {imageAnalysisLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                    <span>Analyzing image...</span>
+                  </div>
+                ) : imageAnalysis ? (
+                  <div className="prose prose-invert max-w-none">
+                    <h3 className="text-xl font-semibold mb-2">Image Analysis</h3>
+                    <div className="whitespace-pre-wrap">{imageAnalysis}</div>
+                  </div>
+                ) : error ? (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                ) : null}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

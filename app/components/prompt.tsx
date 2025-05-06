@@ -29,10 +29,15 @@ const Prompt: React.FC<PromptProps> = ({ onSend }) => {
       if (inputValue.trim() || file) {
         if (file) {
           const isCSV = file.type === 'text/csv' || file.name.endsWith('.csv');
+          const isImage = file.type.startsWith('image/');
+          
           if (isCSV) {
             onSend(inputValue, file);
+          } else if (isImage) {
+            // Handle image file
+            onSend(inputValue, file);
           } else {
-            onSend('Please upload a CSV file.', null);
+            onSend('Please upload a CSV or image file.', null);
           }
         } else {
           // If no file, just send the prompt
@@ -50,14 +55,14 @@ const Prompt: React.FC<PromptProps> = ({ onSend }) => {
       <textarea
         value={inputValue}
         onChange={handleChange}
-        placeholder="Enter your AI prompt here, and upload your CSV file to begin."
+        placeholder="Enter your AI prompt here, and upload your CSV or image file to begin."
         className="chat-input w-full h-16 p-4 text-white bg-transparent border-none resize-none focus:outline-none"
       />
       <input 
         type="file" 
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept=".csv"
+        accept=".csv,image/*"
         className="hidden"
       />
       {file && (
