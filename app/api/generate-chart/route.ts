@@ -24,13 +24,12 @@ export async function POST(request: Request) {
           content: `Generate Python code to create a chart using the following data and requirements:
           Data: ${JSON.stringify(data)}
           Requirements: ${prompt}
-          Use matplotlib or seaborn for visualization.
-          Please provide only the Python code without any explanations.`
+          Please write a matplotlib python code.`
         }
       ],
     });
 
-    const generatedCode = response.message.content;
+    const generatedCode = response.message?.content?.[0]?.text || '';
 
     // TODO: Execute the generated Python code to create the chart
     // This would typically be done in a secure environment

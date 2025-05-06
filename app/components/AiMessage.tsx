@@ -9,10 +9,18 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
+import CodeHighlight from "./CodeHighlight";
+import PythonExecutor from "./PythonExecutor";
 
 interface FoodItem {
   [key: string]: string;
@@ -57,7 +65,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
             }
             setLoading(false);
           },
-          error: (error) => {
+          error: () => {
             setError("Failed to parse the CSV file. Please try again.");
             setLoading(false);
           },
@@ -135,7 +143,12 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
         })
       });
       const { code, image } = await response.json();
-      setChartCode(String(code));
+      
+      // Extract only the Python code using regex
+      const pythonCodeMatch = code.match(/```python\n([\s\S]*?)```/);
+      const extractedCode = pythonCodeMatch ? pythonCodeMatch[1].trim() : code;
+      
+      setChartCode(extractedCode);
       setChartImage(String(image));
     } catch (error) {
       setError('Error generating chart.');
@@ -176,7 +189,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
               <div>
                 <h2 className="text-xl font-semibold mb-2">Column Selection</h2>
                 <div className="flex items-center mb-2">
-                  <Badge variant="outline" className="mr-2">
+                  <Badge variant="custom" className="mr-2">
                     {selectedColumns.length}/{MAX_SELECTIONS} columns selected
                   </Badge>
                 </div>
@@ -202,10 +215,10 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
               <div>
                 <h2 className="text-xl font-semibold mb-2">Data Table</h2>
                 <div className="flex items-center mb-2">
-                  <Badge variant="outline" className="mr-2">
+                  <Badge variant="custom" className="mr-2">
                     {selectedRows.length}/{MAX_SELECTIONS} rows selected
                   </Badge>
-                  <Badge variant="outline">{data.length} total rows</Badge>
+                  <Badge variant="custom">{data.length} total rows</Badge>
                 </div>
                 <ScrollArea className="h-[400px] border rounded-md">
                   <div className="w-full overflow-auto">
@@ -277,20 +290,22 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                 </button>
               </div>
               {chartCode && (
-                <div className="mt-4 bg-[#23232a] border border-[#333] rounded-lg p-4 shadow-md">
-                  <h3 className="text-lg font-semibold mb-2 text-white">Generated Chart</h3>
-                  <div className="mb-4">
-                    <div className="text-xs text-gray-400 mb-1">Python Code</div>
-                    <pre className="bg-[#18181c] text-green-300 p-3 rounded-md max-h-48 overflow-y-auto whitespace-pre-wrap text-sm">
-                      <code>{String(chartCode)}</code>
-                    </pre>
-                  </div>
-                  {chartImage && (
-                    <div className="mt-2 flex flex-col items-center">
-                      <div className="text-xs text-gray-400 mb-1">Chart Output</div>
-                      <img src={String(chartImage)} alt="Generated chart" className="max-w-full rounded-md border border-[#444] bg-[#18181c]" />
-                    </div>
-                  )}
+                <div className="mt-4">
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="code">
+                      <AccordionTrigger className="text-lg font-semibold text-white">
+                        Generated Chart
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-4">
+                          <div className="rounded-md overflow-hidden">
+                            <CodeHighlight code={String(chartCode)} />
+                          </div>
+                          <PythonExecutor code={String(chartCode)} data={getSelectedData()} />
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </div>
               )}
             </div>
