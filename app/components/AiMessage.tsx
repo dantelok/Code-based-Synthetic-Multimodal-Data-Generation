@@ -318,24 +318,30 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                 </button>
               </div>
               {chartCode && (
-                <div className="mt-4">
-                  <Accordion type="single" collapsible className="w-full" defaultValue="code">
-                    <AccordionItem value="code">
-                      <AccordionTrigger className="text-lg font-semibold text-white">
-                        Generated Chart
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="space-y-4">
-                          <div className="rounded-md overflow-hidden">
-                            <CodeHighlight code={String(chartCode)} />
-                            <PythonExecutor code={String(chartCode)} data={selectedData} />
-                          </div>
-                          
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </div>
+               <div className="mt-4">
+               <Accordion type="single" collapsible className="w-full" defaultValue="code">
+                 <AccordionItem value="code">
+                   <AccordionTrigger className="text-lg font-semibold text-white">
+                     Generated Chart
+                   </AccordionTrigger>
+                   <AccordionContent>
+                     <div className="space-y-4">
+                       <div className="rounded-md overflow-hidden border-2 border-red-500">
+                         <CodeHighlight code={String(chartCode)} />
+             
+                         {/* ✅ Wrap PythonExecutor in a div */}
+                         <div className="pt-4">
+                           <PythonExecutor code={String(chartCode)} data={selectedData} />
+                         </div>
+             
+                         <h1>CHART SHOULD BE HERE</h1>
+                       </div>
+                     </div>
+                   </AccordionContent>
+                 </AccordionItem>
+               </Accordion>
+             </div>
+             
               )}
             </div>
           </div>

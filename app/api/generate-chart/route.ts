@@ -21,10 +21,25 @@ export async function POST(request: Request) {
       messages: [
         {
           role: 'user',
-          content: `Generate Python code to create a chart using the following data and requirements:
-          Data: ${JSON.stringify(data)}
-          Requirements: ${prompt}
-          Please write a matplotlib python code.`
+          content: `Generate Python code to create a matplotlib chart using the following data and requirements:
+
+Data: ${JSON.stringify(data)}
+Requirements: ${prompt}
+
+Your generated code must:
+
+1. Use the headless Agg backend by including the following at the top:
+   "import matplotlib
+   matplotlib.use('Agg')"
+2. Fulfill the user's charting requirement using the provided data.
+3. Do not use plt.show() or print() anywhere in the script.
+4. Instead of displaying the plot, save it to an in-memory buffer using BytesIO(), then call:
+"plt.savefig(buffer, format='png', bbox_inches='tight')
+plt.close()"
+5. Encode the buffer content using Base64 and assign it to a variable:
+result = f"data:image/png;base64,{...}"
+6. The last line of your script must be a bare result expression (not inside a print statement), so it can be returned directly.
+Output only the complete Python script.`
         }
       ],
     });

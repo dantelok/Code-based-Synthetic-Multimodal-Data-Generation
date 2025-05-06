@@ -11,41 +11,31 @@ interface PythonExecutorProps {
 const PythonExecutor: React.FC<PythonExecutorProps> = ({ code, data }) => {
   const [chartImage, setChartImage] = useState<string>('');
   const [error, setError] = useState<string>('');
-  const [loading, setLoading] = useState(true);
-  const [pyodideLoaded, setPyodideLoaded] = useState(false);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [pyodideLoaded, setPyodideLoaded] = useState<boolean>(false);
 
+  // Load Pyodide script once
   useEffect(() => {
-    // Load Pyodide script
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
     script.async = true;
     script.onload = () => setPyodideLoaded(true);
     document.body.appendChild(script);
-
-    return () => {
-      document.body.removeChild(script);
-    };
+    return () => void document.body.removeChild(script);
   }, []);
 
+  // Execute Python when code, data or Pyodide availability changes
   useEffect(() => {
-    const executePython = async () => {
+    const execute = async () => {
       if (!pyodideLoaded || !code) return;
-
+      setLoading(true);
+      setError('');
       try {
-        setLoading(true);
-        // @ts-ignore - Pyodide is loaded globally
-        const pyodide = await window.loadPyodide({
-          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/"
-        });
-
-        // Load required packages
-        await pyodide.loadPackage(['matplotlib', 'numpy']);
-
-        // Set up the data in Python environment
+        // @ts-ignore
+        const pyodide = await window.loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/' });
+        await pyodide.loadPackage(['matplotlib', 'numpy', 'pandas']);
         pyodide.globals.set('data', data);
-
-        // Execute the code
-        const result = await pyodide.runPythonAsync(code);
+        const result: string = await pyodide.runPythonAsync(code);
         setChartImage(result);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error executing Python code');
@@ -53,31 +43,22 @@ const PythonExecutor: React.FC<PythonExecutorProps> = ({ code, data }) => {
         setLoading(false);
       }
     };
-
-    executePython();
+    execute();
   }, [code, data, pyodideLoaded]);
 
-  if (error) {
-    return <div className="text-red-500">Error: {error}</div>;
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2">Generating chart...</span>
-      </div>
-    );
-  }
-
   return (
-    <div className="mt-4">
-      {chartImage && (
-        <img src={chartImage} alt="Generated chart" className="max-w-full rounded-md border border-[#444] bg-[#18181c]" />
-      )}
+    <div className="mt-4 border border-green-500 p-2">
+      <p className="text-xs text-green-500">[PythonExecutor Mounted Here]</p>
+      {error ? ( 
+        <p className="text-red-500">{error}</p>
+      ) : loading ? ( 
+        <p className="text-yellow-500">Loading...</p>
+      ) : chartImage ? (
+        <img src={chartImage} alt="Chart" />
+      ) : null}
     </div>
   );
+  
 };
 
-// Export as a dynamic component with no SSR
-export default dynamic(() => Promise.resolve(PythonExecutor), { ssr: false }); 
+export default dynamic(() => Promise.resolve(PythonExecutor), { ssr: false });
