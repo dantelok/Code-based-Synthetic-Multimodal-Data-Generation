@@ -139,6 +139,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     getScrollElement: () => parentRef.current,
     estimateSize: () => 40, // Estimated row height
     overscan: 5,
+    initialOffset: 0, // Ensure we start from the beginning
   });
 
   useEffect(() => {
@@ -173,7 +174,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
   }, [fileType, fileData]);
 
   const renderTable = () => (
-    <div ref={parentRef} className="h-[400px] overflow-auto">
+    <div ref={parentRef} className="h-[400px] overflow-auto scrollbar-hide">
       <div
         style={{
           height: `${rowVirtualizer.getTotalSize()}px`,
@@ -208,6 +209,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                     width: '100%',
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
+                    zIndex: 1, // Ensure rows are properly stacked
                   }}
                   className={`${
                     selectedRows.has(virtualRow.index)
@@ -256,8 +258,8 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     return (
       <div className="flex gap-2 p-4">
         <div>
-          <Avatar>
-            <AvatarImage src="/ai-avatar.png" alt="AI Assistant" />
+          <Avatar className="w-14 h-14" >
+            <AvatarImage src="/cohere.jpg" alt="AI Assistant"/>
             <AvatarFallback>AI</AvatarFallback>
           </Avatar>
         </div>
@@ -307,16 +309,6 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                 {renderTable()}
               </div>
               <div>
-                <h2 className="text-xl font-semibold mb-2">Selected Data</h2>
-                <Card>
-                  <CardContent className="pt-6">
-                    <ScrollArea className="h-[200px]">
-                      <pre className="text-sm bg-muted/20 p-4 rounded-md">{JSON.stringify(selectedData, null, 2)}</pre>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-              </div>
-              <div>
                 <button
                   onClick={generateChart}
                   disabled={selectedRows.size === 0 || selectedColumns.size === 0 || chartLoading}
@@ -327,7 +319,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
               </div>
               {chartCode && (
                 <div className="mt-4">
-                  <Accordion type="single" collapsible className="w-full">
+                  <Accordion type="single" collapsible className="w-full" defaultValue="code">
                     <AccordionItem value="code">
                       <AccordionTrigger className="text-lg font-semibold text-white">
                         Generated Chart
@@ -336,8 +328,9 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                         <div className="space-y-4">
                           <div className="rounded-md overflow-hidden">
                             <CodeHighlight code={String(chartCode)} />
+                            <PythonExecutor code={String(chartCode)} data={selectedData} />
                           </div>
-                          <PythonExecutor code={String(chartCode)} data={selectedData} />
+                          
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -357,7 +350,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
       <div className="flex gap-2 p-4">
         <div>
           <Avatar>
-            <AvatarImage src="/ai-avatar.png" alt="AI Assistant" />
+            <AvatarImage src="/cohere.jpg" alt="AI Assistant" />
             <AvatarFallback>AI</AvatarFallback>
           </Avatar>
         </div>

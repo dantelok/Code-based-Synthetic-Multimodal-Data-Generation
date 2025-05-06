@@ -4,6 +4,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
+import { FaFileCsv } from "react-icons/fa";
 
 interface UserMessageProps {
   prompt?: string;
@@ -16,16 +17,16 @@ const UserMessage: React.FC<UserMessageProps> = ({ prompt, fileType, fileName })
     <div>
       <div className='flex gap-2'>
         <div>
-          <Avatar>
-            <AvatarImage src="https://github.com/shadcn.png" alt='User' />
+          <Avatar className="w-14 h-14">
+            <AvatarImage src="/reuben.jpg" alt='User' className="object-cover w-full h-full" />
             <AvatarFallback>U</AvatarFallback>
           </Avatar>
         </div>
         <div className="flex-1">
           {prompt && <p className="text-white">{String(prompt)}</p>}
           {fileType && fileName && (
-            <div className='mt-2 bg-purple-600/20 text-purple-300 px-4 py-2 rounded-md'>
-              <p>Uploaded file: <span className="font-medium">{String(fileName)}</span></p>
+            <div className='mt-2 bg-purple-600/20 text-purple-300 px-4 py-2 rounded-md flex items-center gap-2'>
+              <FaFileCsv /> <span className="font-medium">{String(fileName)}</span>
             </div>
           )}
         </div>
