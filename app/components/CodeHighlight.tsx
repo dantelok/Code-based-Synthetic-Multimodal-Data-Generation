@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
-import 'prismjs/themes/prism-dark.css';
+import 'prism-themes/themes/prism-atom-dark.css';
 
 interface CodeHighlightProps {
   code: string;

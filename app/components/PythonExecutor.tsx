@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { Loader2 } from 'lucide-react';
 
 interface PythonExecutorProps {
   code: string;
@@ -47,18 +48,19 @@ const PythonExecutor: React.FC<PythonExecutorProps> = ({ code, data }) => {
   }, [code, data, pyodideLoaded]);
 
   return (
-    <div className="mt-4 border border-green-500 p-2">
-      <p className="text-xs text-green-500">[PythonExecutor Mounted Here]</p>
+    <div className="mt-4 p-2">
       {error ? ( 
         <p className="text-red-500">{error}</p>
       ) : loading ? ( 
-        <p className="text-yellow-500">Loading...</p>
+        <div className="flex items-center justify-center gap-2 py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-[#b13131]" />
+          <span className="text-[#b13131]">Generating chart...</span>
+        </div>
       ) : chartImage ? (
-        <img src={chartImage} alt="Chart" />
+        <img src={chartImage} alt="Chart" className="w-full rounded-lg shadow-lg" />
       ) : null}
     </div>
   );
-  
 };
 
 export default dynamic(() => Promise.resolve(PythonExecutor), { ssr: false });

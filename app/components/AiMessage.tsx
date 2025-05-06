@@ -1,11 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import Papa from "papaparse";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -21,14 +26,15 @@ import {
 } from "@/components/ui/avatar";
 import CodeHighlight from "./CodeHighlight";
 import PythonExecutor from "./PythonExecutor";
-import { useVirtualizer, VirtualItem } from '@tanstack/react-virtual';
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { RiAiGenerate2 } from "react-icons/ri";
 
 interface FoodItem {
   [key: string]: string;
 }
 
 interface AiMessageProps {
-  fileType?: 'csv' | 'image';
+  fileType?: "csv" | "image";
   fileData?: File;
   prompt?: string;
 }
@@ -44,10 +50,10 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [chartLoading, setChartLoading] = useState(false);
-  const [chartCode, setChartCode] = useState<string>('');
-  const [chartImage, setChartImage] = useState<string>('');
-  const [imageUrl, setImageUrl] = useState<string>('');
-  const [imageAnalysis, setImageAnalysis] = useState<string>('');
+  const [chartCode, setChartCode] = useState<string>("");
+  const [chartImage, setChartImage] = useState<string>("");
+  const [imageUrl, setImageUrl] = useState<string>("");
+  const [imageAnalysis, setImageAnalysis] = useState<string>("");
   const [imageAnalysisLoading, setImageAnalysisLoading] = useState(false);
 
   // Memoize selected data
@@ -61,7 +67,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     });
   }, [data, selectedRows, selectedColumns]);
 
-  // Memoize row selection handler
+  // Row selection handler
   const handleRowSelection = useCallback((index: number) => {
     setSelectedRows((prev) => {
       const newSet = new Set(prev);
@@ -84,7 +90,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     });
   }, []);
 
-  // Memoize column selection handler
+  // Column selection handler
   const handleColumnSelection = useCallback((column: string) => {
     setSelectedColumns((prev) => {
       const newSet = new Set(prev);
@@ -107,45 +113,43 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     });
   }, []);
 
-  // Memoize generate chart function
+  // Generate chart
   const generateChart = useCallback(async () => {
     if (selectedRows.size === 0 || selectedColumns.size === 0) return;
     setChartLoading(true);
     try {
-      const response = await fetch('/api/generate-chart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/generate-chart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           data: selectedData,
-          prompt: String(prompt)
-        })
+          prompt: String(prompt),
+        }),
       });
       const { code, image } = await response.json();
-      
       const pythonCodeMatch = code.match(/```python\n([\s\S]*?)```/);
       const extractedCode = pythonCodeMatch ? pythonCodeMatch[1].trim() : code;
-      
       setChartCode(extractedCode);
       setChartImage(String(image));
-    } catch (error) {
-      setError('Error generating chart.');
+    } catch (e) {
+      setError("Error generating chart.");
     } finally {
       setChartLoading(false);
     }
   }, [selectedData, prompt]);
 
-  // Virtualized table setup
-  const parentRef = React.useRef<HTMLDivElement>(null);
+  // Virtualizer
+  const parentRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
     count: data.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 40, // Estimated row height
+    estimateSize: () => 40,
     overscan: 5,
-    initialOffset: 0, // Ensure we start from the beginning
   });
 
+  // Load CSV / Image logic
   useEffect(() => {
-    if (fileType === 'csv' && fileData) {
+    if (fileType === "csv" && fileData) {
       setLoading(true);
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -153,11 +157,14 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
           header: true,
           complete: (results) => {
             const parsedData = results.data as FoodItem[];
-            const filteredData = parsedData.filter((row) => Object.values(row).some((value) => value !== ""));
-            setData(filteredData);
-            if (filteredData.length > 0) {
-              setHeaders(Object.keys(filteredData[0]));
-              setSelectedColumns(new Set([Object.keys(filteredData[0])[0]]));
+            const filtered = parsedData.filter((row) =>
+              Object.values(row).some((val) => val !== "")
+            );
+            setData(filtered);
+            if (filtered.length > 0) {
+              const cols = Object.keys(filtered[0]);
+              setHeaders(cols);
+              setSelectedColumns(new Set([cols[0]]));
               setSelectedRows(new Set([0]));
             }
             setLoading(false);
@@ -169,122 +176,97 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
         });
       };
       reader.readAsText(fileData);
-    } else if (fileType === 'image' && fileData) {
+    } else if (fileType === "image" && fileData) {
       const url = URL.createObjectURL(fileData);
       setImageUrl(url);
-      
-      // Process image analysis
-      const analyzeImage = async () => {
+      const analyze = async () => {
         setImageAnalysisLoading(true);
         try {
-          // Convert image to base64
-          const reader = new FileReader();
-          reader.readAsDataURL(fileData);
-          reader.onloadend = async () => {
-            const base64data = reader.result as string;
-            const base64Image = base64data.split(',')[1]; // Remove the data URL prefix
-            
-            const response = await fetch('/api/aya-understanding', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
+          const r = new FileReader();
+          r.readAsDataURL(fileData);
+          r.onloadend = async () => {
+            const base64 = (r.result as string).split(",")[1];
+            const resp = await fetch("/api/aya-understanding", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                prompt: prompt || 'Describe this image in detail',
-                imageBase64: base64Image
+                prompt: prompt || "Describe this image in detail",
+                imageBase64: base64,
               }),
             });
-            
-            if (!response.ok) {
-              throw new Error('Failed to analyze image');
-            }
-            
-            const data = await response.json();
-            setImageAnalysis(data.response);
+            if (!resp.ok) throw new Error();
+            const json = await resp.json();
+            setImageAnalysis(json.response);
           };
-        } catch (error) {
-          console.error('Error analyzing image:', error);
-          setError('Failed to analyze the image. Please try again.');
+        } catch {
+          setError("Failed to analyze the image. Please try again.");
         } finally {
           setImageAnalysisLoading(false);
         }
       };
-      
-      analyzeImage();
+      analyze();
     }
   }, [fileType, fileData, prompt]);
 
+  // Render non-virtualized table
   const renderTable = () => (
-    <div ref={parentRef} className="h-[400px] overflow-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-400/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-400/50">
-      <div
-        style={{
-          height: `${rowVirtualizer.getTotalSize()}px`,
-          width: '100%',
-          position: 'relative',
-        }}
-      >
-        <table className="w-full border-collapse">
-          <thead className="bg-muted sticky top-0 z-10">
-            <tr>
-              <th className="p-2 text-left font-medium text-sm border-b">Select</th>
+    <div className="h-[400px] overflow-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-400/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-400/50">
+      <table className="w-full table-fixed border-collapse">
+        <colgroup>
+          <col style={{ width: '60px' }} />
+          {headers.map((_, idx) => (
+            <col key={idx} style={{ width: `${100 / headers.length}%` }} />
+          ))}
+        </colgroup>
+        <thead className="sticky top-0 z-10 bg-[oklch(0.33_0.12_294.06)]">
+          <tr>
+            <th className="p-2 text-left font-medium text-sm border-b">Select</th>
+            {headers.map((header) => (
+              <th
+                key={header}
+                className={`p-2 text-left font-medium text-sm border-b ${selectedColumns.has(header) ? "bg-primary/10" : ""}`}
+              >
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row, rowIndex) => (
+            <tr
+              key={rowIndex}
+              className={`$${
+                selectedRows.has(rowIndex)
+                  ? "bg-primary/5"
+                  : rowIndex % 2 === 0
+                  ? "bg-[oklch(0.33_0.12_294.06)]/50"
+                  : ""
+              } hover:bg-[oklch(0.33_0.12_294.06)]/80`}
+            >
+              <td className="p-2 border-b">
+                <Checkbox
+                  checked={selectedRows.has(rowIndex)}
+                  onCheckedChange={() => handleRowSelection(rowIndex)}
+                  disabled={selectedRows.size >= MAX_SELECTIONS && !selectedRows.has(rowIndex)}
+                />
+              </td>
               {headers.map((header) => (
-                <th
-                  key={header}
-                  className={`p-2 text-left font-medium text-sm border-b ${selectedColumns.has(header) ? "bg-primary/10" : ""}`}
+                <td
+                  key={`${rowIndex}-${header}`}
+                  className={`p-2 border-b ${selectedColumns.has(header) ? "bg-primary/10" : ""}`}
                 >
-                  {header}
-                </th>
+                  {row[header]}
+                </td>
               ))}
             </tr>
-          </thead>
-          <tbody>
-            {rowVirtualizer.getVirtualItems().map((virtualRow: VirtualItem) => {
-              const row = data[virtualRow.index];
-              return (
-                <tr
-                  key={virtualRow.index}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: `${virtualRow.size}px`,
-                    transform: `translateY(${virtualRow.start}px)`,
-                    zIndex: 1, // Ensure rows are properly stacked
-                  }}
-                  className={`${
-                    selectedRows.has(virtualRow.index)
-                      ? "bg-primary/5"
-                      : virtualRow.index % 2 === 0
-                      ? "bg-muted/50"
-                      : ""
-                  } hover:bg-muted/80`}
-                >
-                  <td className="p-2 border-b">
-                    <Checkbox
-                      checked={selectedRows.has(virtualRow.index)}
-                      onCheckedChange={() => handleRowSelection(virtualRow.index)}
-                      disabled={selectedRows.size >= MAX_SELECTIONS && !selectedRows.has(virtualRow.index)}
-                    />
-                  </td>
-                  {headers.map((header) => (
-                    <td
-                      key={`${virtualRow.index}-${header}`}
-                      className={`p-2 border-b ${selectedColumns.has(header) ? "bg-primary/10" : ""}`}
-                    >
-                      {row[header]}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 
-  if (fileType === 'csv') {
+  // CSV view
+  if (fileType === "csv") {
     if (loading) {
       return (
         <div className="flex items-center justify-center h-64">
@@ -293,147 +275,166 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
         </div>
       );
     }
-    if (data.length === 0) {
+    if (!data.length) {
       return <div>No data available.</div>;
     }
     return (
       <div className="flex gap-2 p-4">
-        <div>
-          <Avatar className="w-14 h-14">
-            <AvatarImage 
-              src="/cohere.jpg" 
-              alt="AI Assistant"
-              className="w-full h-full"
-              width={56}
-              height={56}
-            />
-            <AvatarFallback>AI</AvatarFallback>
-          </Avatar>
-        </div>
-        <div className="flex-1">
-          <div className="space-y-6">
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-xl font-semibold mb-2">Column Selection</h2>
-                <div className="flex items-center mb-2">
-                  <Badge variant="custom" className="mr-2">
-                    {selectedColumns.size}/{MAX_SELECTIONS} columns selected
-                  </Badge>
-                </div>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {headers.map((header) => (
-                    <div key={header} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`column-${header}`}
-                        checked={selectedColumns.has(header)}
-                        onCheckedChange={() => handleColumnSelection(header)}
-                        disabled={selectedColumns.size >= MAX_SELECTIONS && !selectedColumns.has(header)}
-                      />
-                      <label
-                        htmlFor={`column-${header}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {header}
-                      </label>
-                    </div>
-                  ))}
-                </div>
+        <Avatar className="w-14 h-14">
+          <AvatarImage
+            src="/cohere.jpg"
+            alt="AI Assistant"
+            className="w-full h-full"
+            width={56}
+            height={56}
+          />
+          <AvatarFallback>AI</AvatarFallback>
+        </Avatar>
+        <div className="flex-1 space-y-6">
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold mb-2">
+                Column Selection
+              </h2>
+              <div className="flex items-center mb-2">
+                <Badge variant="custom" className="mr-2">
+                  {selectedColumns.size}/{MAX_SELECTIONS} columns selected
+                </Badge>
               </div>
-              <div>
-                <h2 className="text-xl font-semibold mb-2">Data Table</h2>
-                <div className="flex items-center mb-2">
-                  <Badge variant="custom" className="mr-2">
-                    {selectedRows.size}/{MAX_SELECTIONS} rows selected
-                  </Badge>
-                  <Badge variant="custom">{data.length} total rows</Badge>
-                </div>
-                {renderTable()}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {headers.map((hdr) => (
+                  <div key={hdr} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`col-${hdr}`}
+                      checked={selectedColumns.has(hdr)}
+                      onCheckedChange={() => handleColumnSelection(hdr)}
+                      disabled={
+                        selectedColumns.size >= MAX_SELECTIONS &&
+                        !selectedColumns.has(hdr)
+                      }
+                    />
+                    <label
+                      htmlFor={`col-${hdr}`}
+                      className="text-sm font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      {hdr}
+                    </label>
+                  </div>
+                ))}
               </div>
-              <div>
-                <button
-                  onClick={generateChart}
-                  disabled={selectedRows.size === 0 || selectedColumns.size === 0 || chartLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 mt-4"
-                >
-                  {chartLoading ? 'Generating...' : 'Generate Chart'}
-                </button>
-              </div>
-              {chartCode && (
-               <div className="mt-4">
-               <Accordion type="single" collapsible className="w-full" defaultValue="code">
-                 <AccordionItem value="code">
-                   <AccordionTrigger className="text-lg font-semibold text-white">
-                     Generated Chart
-                   </AccordionTrigger>
-                   <AccordionContent>
-                     <div className="space-y-4">
-                       <div className="rounded-md overflow-hidden border-2 border-red-500">
-                         <CodeHighlight code={String(chartCode)} />
-                       </div>
-                     </div>
-                   </AccordionContent>
-                 </AccordionItem>
-               </Accordion>
-               <div className="pt-4">
-                           <PythonExecutor code={String(chartCode)} data={selectedData} />
-                         </div>
-             </div>
-             
-              )}
             </div>
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Data Table</h2>
+              <div className="flex items-center mb-2 space-x-2">
+                <Badge variant="custom">
+                  {selectedRows.size}/{MAX_SELECTIONS} rows selected
+                </Badge>
+                <Badge variant="custom">{data.length} total rows</Badge>
+              </div>
+              {renderTable()}
+            </div>
+            <button
+              onClick={generateChart}
+              disabled={
+                !selectedRows.size ||
+                !selectedColumns.size ||
+                chartLoading
+              }
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {chartLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <RiAiGenerate2 className="h-5 w-5" />
+                  Generate Chart
+                </>
+              )}
+            </button>
+            {chartCode && (
+              <><div className="mt-4 space-y-4">
+                <Accordion
+                  type="single"
+                  collapsible
+                  className="w-full"
+                  defaultValue="code"
+                >
+                  <AccordionItem value="code">
+                    <AccordionTrigger className="text-lg font-semibold text-white">
+                      Generated Chart
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="rounded-md border-gray-400 overflow-hidden">
+                        <CodeHighlight code={chartCode} />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div><div className="pt-4">
+                  <PythonExecutor
+                    code={chartCode}
+                    data={selectedData} />
+                </div></>
+            )}
           </div>
         </div>
       </div>
     );
   }
 
-  // For image files, show the image and analysis
-  if (fileType === 'image' && imageUrl) {
+  // Image view
+  if (fileType === "image" && imageUrl) {
     return (
       <div className="flex gap-2 p-4">
-        <div>
-          <Avatar className="w-14 h-14">
-            <AvatarImage 
-              src="/cohere.jpg" 
-              alt="AI Assistant"
-              className="w-full h-full"
-              width={56}
-              height={56}
-            />
-            <AvatarFallback>AI</AvatarFallback>
-          </Avatar>
-        </div>
+        <Avatar className="w-14 h-14">
+          <AvatarImage
+            src="/cohere.jpg"
+            alt="AI Assistant"
+            className="w-full h-full"
+            width={56}
+            height={56}
+          />
+          <AvatarFallback>AI</AvatarFallback>
+        </Avatar>
         <div className="flex-1">
-          <div className="space-y-4">
-            <Card className="overflow-hidden">
-              <CardContent className="p-4">
-                <img src={imageUrl} alt="Uploaded image" className="max-w-full rounded-lg mb-4" />
-                
-                {imageAnalysisLoading ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-                    <span>Analyzing image...</span>
+          <Card className="overflow-hidden bg-transparent border-none">
+            <CardContent className="p-4">
+              <img
+                src={imageUrl}
+                alt="Uploaded"
+                className="max-w-full rounded-lg mb-4"
+              />
+              {imageAnalysisLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-white mr-2" />
+                  <span>Analyzing image...</span>
+                </div>
+              ) : imageAnalysis ? (
+                <div className="prose prose-invert max-w-none text-white">
+                  <h3 className="text-xl font-semibold mb-2">
+                    Image Analysis
+                  </h3>
+                  <div className="whitespace-pre-wrap text-white">
+                    {imageAnalysis}
                   </div>
-                ) : imageAnalysis ? (
-                  <div className="prose prose-invert max-w-none">
-                    <h3 className="text-xl font-semibold mb-2">Image Analysis</h3>
-                    <div className="whitespace-pre-wrap">{imageAnalysis}</div>
-                  </div>
-                ) : error ? (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                ) : null}
-              </CardContent>
-            </Card>
-          </div>
+                </div>
+              ) : error ? (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              ) : null}
+            </CardContent>
+          </Card>
         </div>
       </div>
     );

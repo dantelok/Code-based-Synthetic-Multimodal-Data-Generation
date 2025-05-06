@@ -26,7 +26,7 @@ export async function POST(request: Request) {
           content: [
             {
               "type": "text",
-              "text": prompt || "what's in this picture?"
+              "text": `${prompt} `
             },
             {
               "type": "image_url",

@@ -11,6 +11,13 @@ interface Message {
   fileData?: File;
 }
 
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good day";
+  return "Good evening";
+};
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -48,23 +55,31 @@ export default function Home() {
           className="h-full max-h-[calc(100vh-120px)] overflow-y-auto px-4 py-8 container mx-auto space-y-4 mb-4"
           style={{ scrollbarGutter: 'stable' }}
         >
-          {messages.map((message, index) => (
-            message.type === 'user' ? (
-              <UserMessage 
-                key={index}
-                prompt={message.prompt}
-                fileType={message.fileType}
-                fileName={message.fileData?.name}
-              />
-            ) : (
-              <AiMessage
-                key={index}
-                fileType={message.fileType}
-                fileData={message.fileData}
-                prompt={message.prompt}
-              />
-            )
-          ))}
+          {messages.length === 0 ? (
+            <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
+              <h1 className="text-5xl font-bold text-gray-200 tracking-wide">
+                {getGreeting()}, Reuben
+              </h1>
+            </div>
+          ) : (
+            messages.map((message, index) => (
+              message.type === 'user' ? (
+                <UserMessage 
+                  key={index}
+                  prompt={message.prompt}
+                  fileType={message.fileType}
+                  fileName={message.fileData?.name}
+                />
+              ) : (
+                <AiMessage
+                  key={index}
+                  fileType={message.fileType}
+                  fileData={message.fileData}
+                  prompt={message.prompt}
+                />
+              )
+            ))
+          )}
           <div ref={messagesEndRef} />
         </div>
       </div>
