@@ -227,8 +227,8 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
         await new Promise(resolve => setTimeout(resolve, 200));
       }
 
-    } catch (e: any) {
-      if (e.name !== 'AbortError') {
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name !== 'AbortError') {
         setError("Error generating charts. Please try again.");
       }
     } finally {
@@ -237,7 +237,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
       setCurrentChartIndex(0);
       abortControllerRef.current = null;
     }
-  }, [selectedData, prompt, chartSize, selectedChartTypes]);
+  }, [selectedData, prompt, chartSize, selectedChartTypes, selectedColumns.size, selectedRows.size]);
 
   // Add download all charts functionality
   const handleDownloadAllCharts = useCallback(async () => {
@@ -301,7 +301,6 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                 type="single"
                 collapsible
                 className="w-full"
-                defaultValue="code"
               >
                 <AccordionItem value="code">
                   <AccordionTrigger className="text-lg font-semibold text-purple-100 hover:text-purple-200 transition-colors">
@@ -419,7 +418,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch {
       setError('Failed to download Q&A pairs');
     }
   }, [imageAnalysis]);
@@ -701,7 +700,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                               </div>
                             </>
                           );
-                        } catch (e) {
+                        } catch  {
                           return <div className="whitespace-pre-wrap">{imageAnalysis}</div>;
                         }
                       })()

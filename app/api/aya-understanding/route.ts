@@ -79,7 +79,7 @@ export async function POST(request: Request) {
         } else {
           break; // For regular prompts, no need to retry
         }
-      } catch (error) {
+      } catch {
         attempts++;
         if (attempts === MAX_RETRIES) {
           throw new Error('Failed to generate valid Q&A pairs after multiple attempts');

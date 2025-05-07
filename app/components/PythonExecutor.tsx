@@ -6,7 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 interface PythonExecutorProps {
   code: string;
-  data: any[];
+  data: Record<string, unknown>[];
 }
 
 const PythonExecutor: React.FC<PythonExecutorProps> = ({ code, data }) => {
@@ -32,7 +32,7 @@ const PythonExecutor: React.FC<PythonExecutorProps> = ({ code, data }) => {
       setLoading(true);
       setError('');
       try {
-        // @ts-ignore
+        // @ts-expect-error - Pyodide types are not available
         const pyodide = await window.loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/' });
         await pyodide.loadPackage(['matplotlib', 'numpy', 'pandas']);
         pyodide.globals.set('data', data);
@@ -57,7 +57,14 @@ const PythonExecutor: React.FC<PythonExecutorProps> = ({ code, data }) => {
           <span className="text-[#b13131]">Generating chart...</span>
         </div>
       ) : chartImage ? (
-        <img src={chartImage} alt="Chart" className="w-full rounded-lg shadow-lg" />
+        <img
+          src={chartImage}
+          alt="Chart"
+          className="w-full rounded-lg shadow-lg"
+          width={800}
+          height={600}
+          style={{ objectFit: 'contain' }}
+        />
       ) : null}
     </div>
   );
