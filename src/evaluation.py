@@ -1,3 +1,8 @@
+import base64
+import os
+
+import cohere
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -102,7 +107,7 @@ def evaluate_charts(csv_path: str, chart_type: str, batch_size: int, output_size
     return evaluation
 
 
-def evaluate_qa_pairs(csv_path: str, batch_size: int, output_size: int, qa_pairs: dict) -> Dict:
+def evaluate_qa_pairs(csv_path: str, batch_size: int, output_size: int, qa_pairs: list) -> Dict:
     """
     Evaluates the generated QA pairs for correctness, diversity, and relevance.
 
@@ -188,3 +193,83 @@ def evaluate_qa_pairs(csv_path: str, batch_size: int, output_size: int, qa_pairs
         evaluation["comments"].append(f"Error evaluating QA pairs: {str(e)}")
 
     return evaluation
+
+
+def vlm_evaluation(csv_path: str, batch_size: int, image_folder: str, qa_pairs: list):
+    """
+    Evaluate multiple chart images against a shared set of QA pairs using Aya Vision.
+
+    Args:
+        csv_path (str): Path to the CSV data source.
+        batch_size (int): Number of rows to load (for context; optional).
+        image_folder (str): Path to folder containing chart images.
+        qa_pairs (list): List of {'question': str, 'answer': str} dicts.
+
+    Returns:
+        None
+    """
+    # Initialize Cohere client
+    co = cohere.ClientV2(api_key="kZxhlDFN7ExcUdVi7yurvNRH6Vc5fmeKzprefQ4W")  # Replace with your secure key
+
+    # Load data (optional, for possible extensions)
+    df = pd.read_csv(csv_path)[:batch_size]
+
+    # Load all image files
+    image_files = sorted([
+        f for f in os.listdir(image_folder)
+        if f.lower().endswith((".jpg", ".jpeg", ".png"))
+    ])
+
+    # Format QA pairs for prompt
+    qa_block = "\n".join([
+        f"Q: {pair['question']}\nA: {pair['answer']}"
+        for pair in qa_pairs
+    ])
+
+    # Loop through each image
+    for img_file in image_files:
+        img_path = os.path.join(image_folder, img_file)
+
+        with open(img_path, "rb") as f:
+            base64_image_url = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+
+        # Build prompt
+        prompt = f"""
+        You are an expert in data visualization and question-answer validation.
+        
+        You are shown a chart (image), and a set of QA pairs that are claimed to be derived from that chart.
+        Also, the charts and QA pairs are generated from {df}.
+        
+        Your tasks:
+        1. Determine if the **answer is correct** based on the chart.
+        2. Determine if the **question is relevant** to the chart.
+        3. Identify any **missing data** or misleading visuals in the chart.
+        
+        Evaluate each QA pair below:
+        
+        {qa_block}
+        
+        Respond with a numbered list for each QA pair:
+        - Is the answer correct?
+        - Is the question relevant?
+        - Justify briefly.
+        
+        Also note any issues with the chart itself at the end of the response.
+        """
+
+        # Call Cohere API
+        response = co.chat(
+            model="c4ai-aya-vision-32b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": base64_image_url}},
+                    ],
+                }
+            ],
+        )
+
+        print(f"\n\n=== Evaluation for {img_file} ===")
+        print(response.message.content[0].text)
