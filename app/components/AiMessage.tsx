@@ -284,46 +284,48 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
 
     return (
       <div className="mt-4 space-y-8">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <h3 className="text-xl font-semibold text-white">Generated Charts</h3>
           <button
             onClick={handleDownloadAllCharts}
-            className="flex items-center gap-2 px-4 py-2 bg-[#8777e0] text-white rounded-md hover:bg-[#8476d4]/80 transition-colors"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-[#8777e0] text-white rounded-md hover:bg-[#8476d4]/80 transition-colors"
           >
             <Download className="h-4 w-4" />
             Download All Charts
           </button>
         </div>
-        {chartResults.map((result, index) => (
-          <div key={`${result.type}-${index}`} className="space-y-4">
-            <Accordion
-              type="single"
-              collapsible
-              className="w-full"
-              defaultValue="code"
-            >
-              <AccordionItem value="code">
-                <AccordionTrigger className="text-lg font-semibold text-purple-100 hover:text-purple-200 transition-colors">
-                  {result.type.charAt(0).toUpperCase() + result.type.slice(1)} Chart
-                  {index === currentChartIndex && generatingCharts && (
-                    <span className="ml-2 text-sm text-purple-300">(Generating...)</span>
-                  )}
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="rounded-md border-purple-200/20 overflow-hidden">
-                    <CodeHighlight code={result.code} />
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-            <div className="pt-4">
-              <PythonExecutor
-                code={result.code}
-                data={selectedData}
-              />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {chartResults.map((result, index) => (
+            <div key={`${result.type}-${index}`} className="space-y-4 bg-[#232325] rounded-lg p-4">
+              <Accordion
+                type="single"
+                collapsible
+                className="w-full"
+                defaultValue="code"
+              >
+                <AccordionItem value="code">
+                  <AccordionTrigger className="text-lg font-semibold text-purple-100 hover:text-purple-200 transition-colors">
+                    {result.type.charAt(0).toUpperCase() + result.type.slice(1)} Chart
+                    {index === currentChartIndex && generatingCharts && (
+                      <span className="ml-2 text-sm text-purple-300">(Generating...)</span>
+                    )}
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="rounded-md border-purple-200/20 overflow-hidden">
+                      <CodeHighlight code={result.code} />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+              <div className="pt-4">
+                <PythonExecutor
+                  code={result.code}
+                  data={selectedData}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
         {generatingCharts && currentChartIndex < chartSize - 1 && (
           <div className="text-center py-4">
             <div className="text-purple-200">Generating next chart...</div>
@@ -422,61 +424,63 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     }
   }, [imageAnalysis]);
 
-  // Optimize table rendering
+  // Optimize table rendering with responsive design
   const renderTable = useCallback(() => (
     <div className="h-[400px] overflow-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-purple-400/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-purple-400/50">
-      <table className="w-full table-fixed border-collapse">
-        <colgroup>
-          <col style={{ width: '60px' }} />
-          {headers.map((_, idx) => (
-            <col key={idx} style={{ width: `${100 / headers.length}%` }} />
-          ))}
-        </colgroup>
-        <thead className="sticky top-0 z-10 bg-[#6B46C1]">
-          <tr>
-            <th className="p-2 text-left font-medium text-sm border-b border-purple-200/20 text-white">Select</th>
-            {headers.map((header) => (
-              <th
-                key={header}
-                className={`p-2 text-left font-medium text-sm border-b border-purple-200/20 text-white ${selectedColumns.has(header) ? "bg-[#6B46C1]" : ""}`}
-              >
-                {header}
-              </th>
+      <div className="min-w-[600px]"> {/* Minimum width to prevent table from becoming too cramped */}
+        <table className="w-full table-fixed border-collapse">
+          <colgroup>
+            <col style={{ width: '60px' }} />
+            {headers.map((_, idx) => (
+              <col key={idx} style={{ width: `${100 / headers.length}%` }} />
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row, rowIndex) => (
-            <tr
-              key={rowIndex}
-              className={`${
-                selectedRows.has(rowIndex)
-                  ? "bg-[#6B46C1]/5"
-                  : rowIndex % 2 === 0
-                  ? "bg-[#6B46C1]/5"
-                  : ""
-              } hover:bg-[#6B46C1]/10 transition-colors`}
-            >
-              <td className="p-2 border-b border-purple-200/20">
-                <Checkbox
-                  checked={selectedRows.has(rowIndex)}
-                  onCheckedChange={() => handleRowSelection(rowIndex)}
-                  disabled={selectedRows.size >= MAX_SELECTIONS && !selectedRows.has(rowIndex)}
-                  className="border-purple-300 data-[state=checked]:bg-[#6B46C1] data-[state=checked]:border-[#6B46C1]"
-                />
-              </td>
+          </colgroup>
+          <thead className="sticky top-0 z-10 bg-[#6B46C1]">
+            <tr>
+              <th className="p-2 text-left font-medium text-sm border-b border-purple-200/20 text-white">Select</th>
               {headers.map((header) => (
-                <td
-                  key={`${rowIndex}-${header}`}
-                  className={`p-2 border-b border-purple-200/20 ${selectedColumns.has(header) ? "bg-[#6B46C1]/10" : ""}`}
+                <th
+                  key={header}
+                  className={`p-2 text-left font-medium text-sm border-b border-purple-200/20 text-white ${selectedColumns.has(header) ? "bg-[#6B46C1]" : ""}`}
                 >
-                  {row[header]}
-                </td>
+                  {header}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((row, rowIndex) => (
+              <tr
+                key={rowIndex}
+                className={`${
+                  selectedRows.has(rowIndex)
+                    ? "bg-[#6B46C1]/5"
+                    : rowIndex % 2 === 0
+                    ? "bg-[#6B46C1]/5"
+                    : ""
+                } hover:bg-[#6B46C1]/10 transition-colors`}
+              >
+                <td className="p-2 border-b border-purple-200/20">
+                  <Checkbox
+                    checked={selectedRows.has(rowIndex)}
+                    onCheckedChange={() => handleRowSelection(rowIndex)}
+                    disabled={selectedRows.size >= MAX_SELECTIONS && !selectedRows.has(rowIndex)}
+                    className="border-purple-300 data-[state=checked]:bg-[#6B46C1] data-[state=checked]:border-[#6B46C1]"
+                  />
+                </td>
+                {headers.map((header) => (
+                  <td
+                    key={`${rowIndex}-${header}`}
+                    className={`p-2 border-b border-purple-200/20 ${selectedColumns.has(header) ? "bg-[#6B46C1]/10" : ""}`}
+                  >
+                    {row[header]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   ), [data, headers, selectedRows, selectedColumns, handleRowSelection]);
 
@@ -492,7 +496,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     });
   }, []);
 
-  // CSV view
+  // CSV view with responsive design
   if (fileType === "csv") {
     if (loading) {
       return (
@@ -506,8 +510,8 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
       return <div>No data available.</div>;
     }
     return (
-      <div className="flex gap-2 p-4">
-        <Avatar className="w-14 h-14">
+      <div className="flex flex-col lg:flex-row gap-4 p-4">
+        <Avatar className="w-14 h-14 shrink-0">
           <AvatarImage
             src="/cohere.jpg"
             alt="AI Assistant"
@@ -558,7 +562,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
             </div>
             <div>
               <h2 className="text-xl font-semibold mb-2">Data Table</h2>
-              <div className="flex items-center mb-2 space-x-2">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 <Badge variant="custom">
                   {selectedRows.size}/{MAX_SELECTIONS} rows selected
                 </Badge>
@@ -570,8 +574,8 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
               <h2 className="text-xl font-semibold mb-2">Chart Settings</h2>
               <div className="space-y-4 mb-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Available Chart Types (Selection is informational)</label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <label className="block text-sm font-medium mb-2">Available Chart Types</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                     {[
                       { value: "bar", label: "Bar Chart" },
                       { value: "line", label: "Line Chart" },
@@ -620,7 +624,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                 !selectedColumns.size ||
                 chartLoading
               }
-              className="px-4 py-2 bg-[#6B46C1] text-white rounded-md hover:bg-[#553C9A] disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+              className="w-full sm:w-auto px-4 py-2 bg-[#6B46C1] text-white rounded-md hover:bg-[#553C9A] disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
             >
               {chartLoading ? (
                 <>
@@ -641,11 +645,11 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     );
   }
 
-  // Image view
+  // Image view with responsive design
   if (fileType === "image" && imageUrl) {
     return (
-      <div className="flex gap-2 p-4">
-        <Avatar className="w-14 h-14">
+      <div className="flex flex-col lg:flex-row gap-4 p-4">
+        <Avatar className="w-14 h-14 shrink-0">
           <AvatarImage
             src="/cohere.jpg"
             alt="AI Assistant"
@@ -661,7 +665,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
               <img
                 src={imageUrl}
                 alt="Uploaded"
-                className="max-w-full rounded-lg mb-4"
+                className="max-w-full h-auto rounded-lg mb-4"
               />
               {imageAnalysisLoading ? (
                 <div className="flex items-center justify-center py-4">
@@ -672,23 +676,22 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                 <div className="prose prose-invert max-w-none pt-3">
                   <div className="space-y-4">
                     {!prompt ? (
-                      // Handle Q&A pairs from JSON
                       (() => {
                         try {
                           const qaData = JSON.parse(imageAnalysis);
                           return (
                             <>
-                              <div className="flex justify-between items-center mb-4">
+                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                                 <h3 className="text-xl font-semibold text-white">Image Q&A</h3>
                                 <button
                                   onClick={handleDownloadQA}
-                                  className="flex items-center gap-2 px-4 py-2 bg-[#8777e0] text-white rounded-md hover:bg-[#8476d4]/80 transition-colors"
+                                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-[#8777e0] text-white rounded-md hover:bg-[#8476d4]/80 transition-colors"
                                 >
                                   <Download className="h-4 w-4" />
                                   Download Q&A
                                 </button>
                               </div>
-                              <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {qaData.qa_pairs.map((qa: { question: string; answer: string }, index: number) => (
                                   <div key={index} className="bg-[#232325] p-4 rounded-lg">
                                     <p className="font-medium text-[#8476d4] mb-2">Q: {qa.question}</p>
@@ -699,12 +702,10 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                             </>
                           );
                         } catch (e) {
-                          // Fallback to regular text display if JSON parsing fails
                           return <div className="whitespace-pre-wrap">{imageAnalysis}</div>;
                         }
                       })()
                     ) : (
-                      // Regular text analysis
                       <div className="whitespace-pre-wrap">{imageAnalysis}</div>
                     )}
                   </div>

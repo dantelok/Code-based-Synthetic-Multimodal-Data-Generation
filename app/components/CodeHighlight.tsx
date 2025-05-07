@@ -13,9 +13,11 @@ const CodeHighlight: React.FC<CodeHighlightProps> = ({ code }) => {
   }, [code]);
 
   return (
-    <pre className="!bg-[#1e1e1e] !m-0">
-      <code className="language-python">{code}</code>
-    </pre>
+    <div className="overflow-x-auto">
+      <pre className="!bg-[#1e1e1e] !m-0 text-xs sm:text-sm">
+        <code className="language-python">{code}</code>
+      </pre>
+    </div>
   );
 };
 

@@ -52,12 +52,12 @@ export default function Home() {
     <div className="min-h-screen bg-[#141415] text-white flex flex-col">
       <div className="flex-1 overflow-hidden">
         <div
-          className="h-full max-h-[calc(100vh-120px)] overflow-y-auto px-4 py-8 container mx-auto space-y-4 mb-4"
+          className="h-full max-h-[calc(100vh-120px)] overflow-y-auto px-2 sm:px-4 py-4 sm:py-8 container mx-auto space-y-4 mb-4"
           style={{ scrollbarGutter: 'stable' }}
         >
           {messages.length === 0 ? (
             <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-              <h1 className="text-5xl font-bold text-gray-200 tracking-wide">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-200 tracking-wide text-center px-4">
                 {getGreeting()}, Reuben
               </h1>
             </div>
@@ -83,10 +83,9 @@ export default function Home() {
           <div ref={messagesEndRef} />
         </div>
       </div>
-      <div className="fixed inset-x-4 bottom-4 bg-[#1C1C1E] z-50 rounded-lg px-3 py-2 m-5 safe‑area-inset-bottom">
-  <Prompt onSend={handleSendMessage} />
-</div>
-
+      <div className="fixed inset-x-0 sm:inset-x-4 bottom-0 sm:bottom-4 bg-[#1C1C1E] z-50 rounded-t-lg sm:rounded-lg px-3 py-2 m-0 sm:m-5 safe-area-inset-bottom">
+        <Prompt onSend={handleSendMessage} />
+      </div>
     </div>
   );
 }
