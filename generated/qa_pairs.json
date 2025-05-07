@@ -16,19 +16,19 @@
         "answer": "Florida"
     },
     {
-        "question": "How many confirmed cases were reported in Adjuntas, Puerto Rico, on 1/22/20?",
-        "answer": "0"
+        "question": "What is the Combined_Key for the location with FIPS code 72019?",
+        "answer": "Barranquitas, Puerto Rico, US"
     },
     {
-        "question": "What is the combined key for the location with the lowest latitude in the dataset?",
-        "answer": "Guanica, Puerto Rico, US"
-    },
-    {
-        "question": "Are there any confirmed cases in Aguadilla, Puerto Rico, as of 1/22/20?",
+        "question": "Are there any confirmed cases in Aguada, Puerto Rico, as of 1/22/20?",
         "answer": "No"
     },
     {
-        "question": "Which US territory has the highest longitude value in the dataset?",
-        "answer": "Northern Mariana Islands"
+        "question": "Which location has the lowest latitude in the dataset?",
+        "answer": "Arroyo, Puerto Rico, US"
+    },
+    {
+        "question": "How many locations in the dataset are part of Puerto Rico?",
+        "answer": "31"
     }
 ]
