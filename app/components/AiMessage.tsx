@@ -26,8 +26,8 @@ import {
 } from "@/components/ui/avatar";
 import CodeHighlight from "./CodeHighlight";
 import PythonExecutor from "./PythonExecutor";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { RiAiGenerate2 } from "react-icons/ri";
+import JSZip from 'jszip';
 
 interface FoodItem {
   [key: string]: string;
@@ -50,24 +50,40 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [chartLoading, setChartLoading] = useState(false);
-  const [chartCode, setChartCode] = useState<string>("");
-  const [chartImage, setChartImage] = useState<string>("");
+  const [chartResults, setChartResults] = useState<Array<{type: string, code: string, image: string}>>([]);
   const [imageUrl, setImageUrl] = useState<string>("");
   const [imageAnalysis, setImageAnalysis] = useState<string>("");
   const [imageAnalysisLoading, setImageAnalysisLoading] = useState(false);
+  const [selectedChartTypes, setSelectedChartTypes] = useState<Set<string>>(new Set(["bar"]));
+  const [chartSize, setChartSize] = useState<number>(5);
+  const [currentChartIndex, setCurrentChartIndex] = useState<number>(0);
+  const [generatingCharts, setGeneratingCharts] = useState<boolean>(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Memoize selected data
+  // Memoize selected data with better performance
   const selectedData = useMemo(() => {
+    if (selectedRows.size === 0 || selectedColumns.size === 0) return [];
+    
+    const selectedColumnsArray = Array.from(selectedColumns);
     return Array.from(selectedRows).map((rowIndex) => {
-      const row: Record<string, string> = {};
-      Array.from(selectedColumns).forEach((column) => {
-        row[column] = data[rowIndex][column];
-      });
-      return row;
+      const row = data[rowIndex];
+      return selectedColumnsArray.reduce((acc, column) => {
+        acc[column] = row[column];
+        return acc;
+      }, {} as Record<string, string>);
     });
   }, [data, selectedRows, selectedColumns]);
 
-  // Row selection handler
+  // Cleanup function for aborting requests
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Optimize row selection handler
   const handleRowSelection = useCallback((index: number) => {
     setSelectedRows((prev) => {
       const newSet = new Set(prev);
@@ -90,7 +106,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     });
   }, []);
 
-  // Column selection handler
+  // Optimize column selection handler
   const handleColumnSelection = useCallback((column: string) => {
     setSelectedColumns((prev) => {
       const newSet = new Set(prev);
@@ -113,39 +129,212 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     });
   }, []);
 
-  // Generate chart
+  // Chart type selection handler
+  const handleChartTypeSelection = useCallback((type: string) => {
+    setSelectedChartTypes((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(type)) {
+        if (newSet.size <= 1) {
+          setError("You must select at least one chart type.");
+          setTimeout(() => setError(null), 3000);
+          return prev;
+        }
+        newSet.delete(type);
+      } else {
+        newSet.add(type);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // Optimize chart generation with better error handling and state management
   const generateChart = useCallback(async () => {
     if (selectedRows.size === 0 || selectedColumns.size === 0) return;
+    
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    
     setChartLoading(true);
+    setGeneratingCharts(true);
+    setChartResults([]);
+    setCurrentChartIndex(0);
+    setError(null);
+    
     try {
-      const response = await fetch("/api/generate-chart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: selectedData,
-          prompt: String(prompt),
-        }),
-      });
-      const { code, image } = await response.json();
-      const pythonCodeMatch = code.match(/```python\n([\s\S]*?)```/);
-      const extractedCode = pythonCodeMatch ? pythonCodeMatch[1].trim() : code;
-      setChartCode(extractedCode);
-      setChartImage(String(image));
-    } catch (e) {
-      setError("Error generating chart.");
+      const selectedTypes = Array.from(selectedChartTypes);
+      
+      if (selectedTypes.length === 0) {
+        setError("Please select at least one chart type.");
+        return;
+      }
+
+      const results: Array<{type: string, code: string, image: string}> = [];
+      const CHUNK_SIZE = 2;
+      const totalCharts = chartSize;
+
+      for (let i = 0; i < totalCharts; i += CHUNK_SIZE) {
+        if (abortControllerRef.current?.signal.aborted) break;
+        
+        const chunkPromises = [];
+        const endIndex = Math.min(i + CHUNK_SIZE, totalCharts);
+        
+        for (let j = i; j < endIndex; j++) {
+          setCurrentChartIndex(j);
+          const chartType = selectedTypes[j % selectedTypes.length];
+          
+          const promise = fetch("/api/generate-chart", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              data: selectedData,
+              prompt: String(prompt),
+              chartType: chartType,
+              chartSize: chartSize
+            }),
+            signal: abortControllerRef.current?.signal
+          })
+          .then(async (response) => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            const { code, image } = await response.json();
+            const pythonCodeMatch = code.match(/```python\n([\s\S]*?)```/);
+            const extractedCode = pythonCodeMatch ? pythonCodeMatch[1].trim() : code;
+            
+            return {
+              type: chartType,
+              code: extractedCode,
+              image: String(image)
+            };
+          })
+          .catch((error) => {
+            if (error.name === 'AbortError') throw error;
+            console.error(`Error generating chart ${j + 1}:`, error);
+            return null;
+          });
+          
+          chunkPromises.push(promise);
+        }
+
+        const chunkResults = await Promise.all(chunkPromises);
+        const validResults = chunkResults.filter(Boolean) as Array<{type: string, code: string, image: string}>;
+        
+        results.push(...validResults);
+        setChartResults(prev => [...prev, ...validResults]);
+        
+        // Add a small delay between chunks to prevent overwhelming the server
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+    } catch (e: any) {
+      if (e.name !== 'AbortError') {
+        setError("Error generating charts. Please try again.");
+      }
     } finally {
       setChartLoading(false);
+      setGeneratingCharts(false);
+      setCurrentChartIndex(0);
+      abortControllerRef.current = null;
     }
-  }, [selectedData, prompt]);
+  }, [selectedData, prompt, chartSize, selectedChartTypes]);
 
-  // Virtualizer
-  const parentRef = useRef<HTMLDivElement>(null);
-  const rowVirtualizer = useVirtualizer({
-    count: data.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 40,
-    overscan: 5,
-  });
+  // Add download all charts functionality
+  const handleDownloadAllCharts = useCallback(async () => {
+    if (chartResults.length === 0) return;
+
+    try {
+      const zip = new JSZip();
+      const codeFolder = zip.folder("python_code");
+      const imagesFolder = zip.folder("chart_images");
+
+      // Add each chart's code and image to the zip
+      chartResults.forEach((result, index) => {
+        if (codeFolder) {
+          codeFolder.file(`${result.type}_chart_${index + 1}.py`, result.code);
+        }
+        if (imagesFolder) {
+          // Convert base64 image to blob
+          const imageData = result.image.split(',')[1];
+          if (imageData) {
+            imagesFolder.file(`${result.type}_chart_${index + 1}.png`, imageData, { base64: true });
+          }
+        }
+      });
+
+      // Generate and download the zip file
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'generated_charts.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading charts:', error);
+      setError('Failed to download charts. Please try again.');
+    }
+  }, [chartResults]);
+
+  // Memoize chart results display
+  const ChartResultsDisplay = useMemo(() => {
+    if (chartResults.length === 0) return null;
+
+    return (
+      <div className="mt-4 space-y-8">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-semibold text-white">Generated Charts</h3>
+          <button
+            onClick={handleDownloadAllCharts}
+            className="flex items-center gap-2 px-4 py-2 bg-[#8777e0] text-white rounded-md hover:bg-[#8476d4]/80 transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            Download All Charts
+          </button>
+        </div>
+        {chartResults.map((result, index) => (
+          <div key={`${result.type}-${index}`} className="space-y-4">
+            <Accordion
+              type="single"
+              collapsible
+              className="w-full"
+              defaultValue="code"
+            >
+              <AccordionItem value="code">
+                <AccordionTrigger className="text-lg font-semibold text-purple-100 hover:text-purple-200 transition-colors">
+                  {result.type.charAt(0).toUpperCase() + result.type.slice(1)} Chart
+                  {index === currentChartIndex && generatingCharts && (
+                    <span className="ml-2 text-sm text-purple-300">(Generating...)</span>
+                  )}
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="rounded-md border-purple-200/20 overflow-hidden">
+                    <CodeHighlight code={result.code} />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+            <div className="pt-4">
+              <PythonExecutor
+                code={result.code}
+                data={selectedData}
+              />
+            </div>
+          </div>
+        ))}
+        {generatingCharts && currentChartIndex < chartSize - 1 && (
+          <div className="text-center py-4">
+            <div className="text-purple-200">Generating next chart...</div>
+            <div className="text-sm text-purple-300 mt-2">
+              {currentChartIndex + 1} of {chartSize} charts completed
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }, [chartResults, currentChartIndex, generatingCharts, chartSize, selectedData, handleDownloadAllCharts]);
 
   // Load CSV / Image logic
   useEffect(() => {
@@ -233,9 +422,9 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     }
   }, [imageAnalysis]);
 
-  // Render non-virtualized table
-  const renderTable = () => (
-    <div className="h-[400px] overflow-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-400/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-400/50">
+  // Optimize table rendering
+  const renderTable = useCallback(() => (
+    <div className="h-[400px] overflow-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-purple-400/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-purple-400/50">
       <table className="w-full table-fixed border-collapse">
         <colgroup>
           <col style={{ width: '60px' }} />
@@ -243,13 +432,13 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
             <col key={idx} style={{ width: `${100 / headers.length}%` }} />
           ))}
         </colgroup>
-        <thead className="sticky top-0 z-10 bg-[oklch(0.33_0.12_294.06)]">
+        <thead className="sticky top-0 z-10 bg-[#6B46C1]">
           <tr>
-            <th className="p-2 text-left font-medium text-sm border-b">Select</th>
+            <th className="p-2 text-left font-medium text-sm border-b border-purple-200/20 text-white">Select</th>
             {headers.map((header) => (
               <th
                 key={header}
-                className={`p-2 text-left font-medium text-sm border-b ${selectedColumns.has(header) ? "bg-primary/10" : ""}`}
+                className={`p-2 text-left font-medium text-sm border-b border-purple-200/20 text-white ${selectedColumns.has(header) ? "bg-[#6B46C1]" : ""}`}
               >
                 {header}
               </th>
@@ -260,25 +449,26 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
           {data.map((row, rowIndex) => (
             <tr
               key={rowIndex}
-              className={`$${
+              className={`${
                 selectedRows.has(rowIndex)
-                  ? "bg-primary/5"
+                  ? "bg-[#6B46C1]/5"
                   : rowIndex % 2 === 0
-                  ? "bg-[oklch(0.33_0.12_294.06)]/50"
+                  ? "bg-[#6B46C1]/5"
                   : ""
-              } hover:bg-[oklch(0.33_0.12_294.06)]/80`}
+              } hover:bg-[#6B46C1]/10 transition-colors`}
             >
-              <td className="p-2 border-b">
+              <td className="p-2 border-b border-purple-200/20">
                 <Checkbox
                   checked={selectedRows.has(rowIndex)}
                   onCheckedChange={() => handleRowSelection(rowIndex)}
                   disabled={selectedRows.size >= MAX_SELECTIONS && !selectedRows.has(rowIndex)}
+                  className="border-purple-300 data-[state=checked]:bg-[#6B46C1] data-[state=checked]:border-[#6B46C1]"
                 />
               </td>
               {headers.map((header) => (
                 <td
                   key={`${rowIndex}-${header}`}
-                  className={`p-2 border-b ${selectedColumns.has(header) ? "bg-primary/10" : ""}`}
+                  className={`p-2 border-b border-purple-200/20 ${selectedColumns.has(header) ? "bg-[#6B46C1]/10" : ""}`}
                 >
                   {row[header]}
                 </td>
@@ -288,7 +478,19 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
         </tbody>
       </table>
     </div>
-  );
+  ), [data, headers, selectedRows, selectedColumns, handleRowSelection]);
+
+  // Update the chart size handler to adjust selected types if needed
+  const handleChartSizeChange = useCallback((newSize: number) => {
+    setChartSize(newSize);
+    setSelectedChartTypes((prev) => {
+      const types = Array.from(prev);
+      if (types.length > newSize) {
+        return new Set(types.slice(0, newSize));
+      }
+      return prev;
+    });
+  }, []);
 
   // CSV view
   if (fileType === "csv") {
@@ -328,7 +530,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                 Column Selection
               </h2>
               <div className="flex items-center mb-2">
-                <Badge variant="custom" className="mr-2">
+                <Badge variant="custom" className="mr-2 bg-[#6B46C1]/20 text-purple-200">
                   {selectedColumns.size}/{MAX_SELECTIONS} columns selected
                 </Badge>
               </div>
@@ -364,6 +566,53 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
               </div>
               {renderTable()}
             </div>
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Chart Settings</h2>
+              <div className="space-y-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Available Chart Types (Selection is informational)</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: "bar", label: "Bar Chart" },
+                      { value: "line", label: "Line Chart" },
+                      { value: "scatter", label: "Scatter Plot" },
+                      { value: "pie", label: "Pie Chart" },
+                      { value: "area", label: "Area Chart" },
+                      { value: "histogram", label: "Histogram" }
+                    ].map((type) => (
+                      <div key={type.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`chart-${type.value}`}
+                          checked={selectedChartTypes.has(type.value)}
+                          onCheckedChange={() => handleChartTypeSelection(type.value)}
+                          className="border-purple-300 data-[state=checked]:bg-[#6B46C1] data-[state=checked]:border-[#6B46C1]"
+                        />
+                        <label
+                          htmlFor={`chart-${type.value}`}
+                          className="text-sm font-medium text-purple-100 peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {type.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Chart Size (0-10)</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    value={chartSize}
+                    onChange={(e) => handleChartSizeChange(Number(e.target.value))}
+                    className="w-full accent-[#6B46C1]"
+                  />
+                  <div className="text-sm text-purple-200 mt-1">
+                    Size: {chartSize} (Will generate up to {chartSize} charts)
+                  </div>
+                </div>
+              </div>
+            </div>
             <button
               onClick={generateChart}
               disabled={
@@ -371,45 +620,21 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                 !selectedColumns.size ||
                 chartLoading
               }
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="px-4 py-2 bg-[#6B46C1] text-white rounded-md hover:bg-[#553C9A] disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
             >
               {chartLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Generating...
+                  {generatingCharts ? `Generating Chart ${currentChartIndex + 1} of ${chartSize}...` : 'Generating...'}
                 </>
               ) : (
                 <>
                   <RiAiGenerate2 className="h-5 w-5" />
-                  Generate Chart
+                  Generate Charts
                 </>
               )}
             </button>
-            {chartCode && (
-              <><div className="mt-4 space-y-4">
-                <Accordion
-                  type="single"
-                  collapsible
-                  className="w-full"
-                  defaultValue="code"
-                >
-                  <AccordionItem value="code">
-                    <AccordionTrigger className="text-lg font-semibold text-white">
-                      Generated Chart
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="rounded-md border-gray-400 overflow-hidden">
-                        <CodeHighlight code={chartCode} />
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </div><div className="pt-4">
-                  <PythonExecutor
-                    code={chartCode}
-                    data={selectedData} />
-                </div></>
-            )}
+            {ChartResultsDisplay}
           </div>
         </div>
       </div>

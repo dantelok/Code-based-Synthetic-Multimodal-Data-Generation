@@ -22,6 +22,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cohere-ai": "^7.17.1",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.507.0",
     "next": "15.3.1",
     "papaparse": "^5.5.2",

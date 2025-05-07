@@ -3,7 +3,7 @@ import { CohereClientV2 } from 'cohere-ai';
 
 export async function POST(request: Request) {
   try {
-    const { data, prompt } = await request.json();
+    const { data, prompt, chartType, chartSize } = await request.json();
 
     const COHERE_API_KEY = process.env.COHERE_API_KEY;
     
@@ -25,20 +25,26 @@ export async function POST(request: Request) {
 
 Data: ${JSON.stringify(data)}
 Requirements: ${prompt}
+Chart Type: ${chartType}
+Chart Size: ${chartSize} (scale from 0-10, where 0 is smallest and 10 is largest)
 
 Your generated code must:
 
 1. Use the headless Agg backend by including the following at the top:
    "import matplotlib
    matplotlib.use('Agg')"
-2. Fulfill the user's charting requirement using the provided data.
-3. Do not use plt.show() or print() anywhere in the script.
-4. Instead of displaying the plot, save it to an in-memory buffer using BytesIO(), then call:
+2. Create a ${chartType} chart using the provided data.
+3. Set the figure size based on the chart size (0-10) using plt.figure(figsize=(width, height)) where:
+   - For size 0-3: use small dimensions (e.g., 4x3)
+   - For size 4-6: use medium dimensions (e.g., 8x6)
+   - For size 7-10: use large dimensions (e.g., 12x8)
+4. Do not use plt.show() or print() anywhere in the script.
+5. Instead of displaying the plot, save it to an in-memory buffer using BytesIO(), then call:
 "plt.savefig(buffer, format='png', bbox_inches='tight')
 plt.close()"
-5. Encode the buffer content using Base64 and assign it to a variable:
+6. Encode the buffer content using Base64 and assign it to a variable:
 result = f"data:image/png;base64,{...}"
-6. The last line of your script must be a bare result expression (not inside a print statement), so it can be returned directly.
+7. The last line of your script must be a bare result expression (not inside a print statement), so it can be returned directly.
 Output only the complete Python script.`
         }
       ],
