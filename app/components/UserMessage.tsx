@@ -18,7 +18,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ prompt, fileType, fileName })
       <div className='flex gap-2'>
         <div>
           <Avatar className="w-14 h-14">
-            <AvatarImage src="/reuben.jpg" alt='User' className=" w-full h-full" />
+            <AvatarImage src="/reuben.jpg" alt='User' className="w-full h-full" />
             <AvatarFallback>U</AvatarFallback>
           </Avatar>
         </div>

@@ -10,7 +10,7 @@ import React, {
 import Papa from "papaparse";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -208,6 +208,31 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     }
   }, [fileType, fileData, prompt]);
 
+  const handleDownloadQA = useCallback(() => {
+    if (!imageAnalysis) return;
+    
+    try {
+      const qaData = JSON.parse(imageAnalysis);
+      const content = qaData.qa_pairs
+        .map((qa: { question: string; answer: string }) => 
+          `Q: ${qa.question}\nA: ${qa.answer}\n\n`
+        )
+        .join('');
+      
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'image-qa.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError('Failed to download Q&A pairs');
+    }
+  }, [imageAnalysis]);
+
   // Render non-virtualized table
   const renderTable = () => (
     <div className="h-[400px] overflow-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-400/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-400/50">
@@ -270,7 +295,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
     if (loading) {
       return (
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-white" />
           <span className="ml-2">Loading data...</span>
         </div>
       );
@@ -419,12 +444,44 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
                   <span>Analyzing image...</span>
                 </div>
               ) : imageAnalysis ? (
-                <div className="prose prose-invert max-w-none text-white">
-                  <h3 className="text-xl font-semibold mb-2">
-                    Image Analysis
-                  </h3>
-                  <div className="whitespace-pre-wrap text-white">
-                    {imageAnalysis}
+                <div className="prose prose-invert max-w-none pt-3">
+                  <div className="space-y-4">
+                    {!prompt ? (
+                      // Handle Q&A pairs from JSON
+                      (() => {
+                        try {
+                          const qaData = JSON.parse(imageAnalysis);
+                          return (
+                            <>
+                              <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-semibold text-white">Image Q&A</h3>
+                                <button
+                                  onClick={handleDownloadQA}
+                                  className="flex items-center gap-2 px-4 py-2 bg-[#8777e0] text-white rounded-md hover:bg-[#8476d4]/80 transition-colors"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  Download Q&A
+                                </button>
+                              </div>
+                              <div className="space-y-4">
+                                {qaData.qa_pairs.map((qa: { question: string; answer: string }, index: number) => (
+                                  <div key={index} className="bg-[#232325] p-4 rounded-lg">
+                                    <p className="font-medium text-[#8476d4] mb-2">Q: {qa.question}</p>
+                                    <p className="text-gray-300">A: {qa.answer}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          );
+                        } catch (e) {
+                          // Fallback to regular text display if JSON parsing fails
+                          return <div className="whitespace-pre-wrap">{imageAnalysis}</div>;
+                        }
+                      })()
+                    ) : (
+                      // Regular text analysis
+                      <div className="whitespace-pre-wrap">{imageAnalysis}</div>
+                    )}
                   </div>
                 </div>
               ) : error ? (
