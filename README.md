@@ -8,3 +8,5 @@ High-quality, diverse datasets are essential for improving VLMs’ understanding
 Existing multimodal datasets lack structured chart/plot-based data. This limits their visualization understanding.
 Synthetic data generation enables us to create a diverse dataset scalably while reducing costs and biases.
 
+### Architecture Diagram
+![plot](Data-Pipeline.png)
