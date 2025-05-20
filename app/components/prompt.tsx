@@ -1,18 +1,29 @@
 import React, { useState, useRef } from 'react'
 import { MdSend } from "react-icons/md";
 import { IoCloudUpload } from "react-icons/io5";
+import { IoEye, IoEyeOff } from "react-icons/io5";
 
 interface PromptProps {
-  onSend: (prompt: string, file: File | null) => void;
+  onSend: (prompt: string, file: File | null, apiKey: string) => void;
 }
 
 const Prompt: React.FC<PromptProps> = ({ onSend }) => {
     const [inputValue, setInputValue] = useState<string>('');
     const [file, setFile] = useState<File | null>(null);
+    const [apiKey, setApiKey] = useState<string>('');
+    const [showApiKey, setShowApiKey] = useState<boolean>(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       setInputValue(e.target.value);
+    };
+
+    const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setApiKey(e.target.value);
+    };
+
+    const toggleApiKeyVisibility = () => {
+      setShowApiKey(!showApiKey);
     };
 
     const handleFileUpload = () => {
@@ -28,21 +39,26 @@ const Prompt: React.FC<PromptProps> = ({ onSend }) => {
 
     const handleSend = async () => {
       if (inputValue.trim() || file) {
+        if (!apiKey) {
+          onSend('Please enter your Cohere API key.', null, '');
+          return;
+        }
+
         if (file) {
           const isCSV = file.type === 'text/csv' || file.name.endsWith('.csv');
           const isImage = file.type.startsWith('image/');
           
           if (isCSV) {
-            onSend(inputValue, file);
+            onSend(inputValue, file, apiKey);
           } else if (isImage) {
             // Handle image file
-            onSend(inputValue, file);
+            onSend(inputValue, file, apiKey);
           } else {
-            onSend('Please upload a CSV or image file.', null);
+            onSend('Please upload a CSV or image file.', null, '');
           }
         } else {
           // If no file, just send the prompt
-          onSend(inputValue, null);
+          onSend(inputValue, null, apiKey);
         }
         
         // Reset after sending
@@ -53,6 +69,27 @@ const Prompt: React.FC<PromptProps> = ({ onSend }) => {
 
   return (
     <div className="w-full">
+      <div className="relative">
+        <input
+          type={showApiKey ? "text" : "password"}
+          value={apiKey}
+          onChange={handleApiKeyChange}
+          placeholder="Enter your Cohere API key"
+          className="w-full p-3 mb-2 text-white bg-transparent border border-gray-600 rounded-lg focus:outline-none focus:border-[#2a6d89] text-sm sm:text-base pr-10"
+        />
+        <button
+          type="button"
+          onClick={toggleApiKeyVisibility}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+          aria-label={showApiKey ? "Hide API key" : "Show API key"}
+        >
+          {showApiKey ? (
+            <IoEyeOff className="w-5 h-5" />
+          ) : (
+            <IoEye className="w-5 h-5" />
+          )}
+        </button>
+      </div>
       <textarea
         value={inputValue}
         onChange={handleChange}

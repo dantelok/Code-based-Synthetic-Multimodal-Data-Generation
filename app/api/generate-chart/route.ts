@@ -3,16 +3,14 @@ import { CohereClientV2 } from 'cohere-ai';
 
 export async function POST(request: Request) {
   try {
-    const { data, prompt, chartType, chartSize } = await request.json();
+    const { data, prompt, chartType, chartSize, apiKey } = await request.json();
 
-    const COHERE_API_KEY = process.env.COHERE_API_KEY;
-    
-    if (!COHERE_API_KEY) {
-      throw new Error('Cohere API key not found');
+    if (!apiKey) {
+      throw new Error('Cohere API key not provided');
     }
 
     const cohere = new CohereClientV2({
-      token: COHERE_API_KEY,
+      token: apiKey,
     });
 
     // Call Cohere API to generate Python code for chart

@@ -9,6 +9,7 @@ interface Message {
   prompt?: string;
   fileType?: 'csv' | 'image';
   fileData?: File;
+  apiKey?: string;
 }
 
 const getGreeting = () => {
@@ -22,12 +23,13 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSendMessage = (prompt: string, file: File | null) => {
+  const handleSendMessage = (prompt: string, file: File | null, apiKey: string) => {
     const newMessage: Message = {
       type: 'user',
       prompt,
       fileType: file?.type.includes('csv') ? 'csv' : 'image',
-      fileData: file || undefined
+      fileData: file || undefined,
+      apiKey
     };
 
     setMessages(prev => [...prev, newMessage]);
@@ -37,7 +39,8 @@ export default function Home() {
       type: 'ai',
       prompt,
       fileType: file?.type.includes('csv') ? 'csv' : 'image',
-      fileData: file || undefined
+      fileData: file || undefined,
+      apiKey
     };
 
     setMessages(prev => [...prev, aiMessage]);
@@ -76,6 +79,7 @@ export default function Home() {
                   fileType={message.fileType}
                   fileData={message.fileData}
                   prompt={message.prompt}
+                  apiKey={message.apiKey}
                 />
               )
             ))

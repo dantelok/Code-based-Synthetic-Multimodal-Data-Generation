@@ -37,12 +37,13 @@ interface AiMessageProps {
   fileType?: "csv" | "image";
   fileData?: File;
   prompt?: string;
+  apiKey?: string;
 }
 
 const MAX_SELECTIONS = 10;
 const MIN_SELECTIONS = 1;
 
-const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => {
+const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt, apiKey }) => {
   const [data, setData] = useState<FoodItem[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
@@ -171,6 +172,11 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
         return;
       }
 
+      if (!apiKey) {
+        setError("Please provide your Cohere API key.");
+        return;
+      }
+
       const results: Array<{type: string, code: string, image: string}> = [];
       const CHUNK_SIZE = 2;
       const totalCharts = chartSize;
@@ -192,7 +198,8 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
               data: selectedData,
               prompt: String(prompt),
               chartType: chartType,
-              chartSize: chartSize
+              chartSize: chartSize,
+              apiKey: apiKey
             }),
             signal: abortControllerRef.current?.signal
           })
@@ -237,7 +244,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
       setCurrentChartIndex(0);
       abortControllerRef.current = null;
     }
-  }, [selectedData, prompt, chartSize, selectedChartTypes, selectedColumns.size, selectedRows.size]);
+  }, [selectedData, prompt, chartSize, selectedChartTypes, selectedColumns.size, selectedRows.size, apiKey]);
 
   // Add download all charts functionality
   const handleDownloadAllCharts = useCallback(async () => {
@@ -382,6 +389,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
               body: JSON.stringify({
                 prompt: prompt || "Describe this image in detail",
                 imageBase64: base64,
+                apiKey: apiKey
               }),
             });
             if (!resp.ok) throw new Error();
@@ -396,7 +404,7 @@ const AiMessage: React.FC<AiMessageProps> = ({ fileType, fileData, prompt }) => 
       };
       analyze();
     }
-  }, [fileType, fileData, prompt]);
+  }, [fileType, fileData, prompt, apiKey]);
 
   const handleDownloadQA = useCallback(() => {
     if (!imageAnalysis) return;

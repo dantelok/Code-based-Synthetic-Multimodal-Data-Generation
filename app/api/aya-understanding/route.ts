@@ -5,16 +5,14 @@ const MAX_RETRIES = 3;
 
 export async function POST(request: Request) {
   try {
-    const { prompt, imageBase64 } = await request.json();
+    const { prompt, imageBase64, apiKey } = await request.json();
 
-    const COHERE_API_KEY = process.env.COHERE_API_KEY;
-    
-    if (!COHERE_API_KEY) {
-      throw new Error('Cohere API key not found');
+    if (!apiKey) {
+      throw new Error('Cohere API key not provided');
     }
 
     const cohere = new CohereClientV2({
-      token: COHERE_API_KEY,
+      token: apiKey,
     });
 
     // Format the image as a data URI
