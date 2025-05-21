@@ -1,0 +1,34 @@
+[
+    {
+        "question": "Which US territory had a Confirmed case count of 0 on 1/22/20?",
+        "answer": "American Samoa"
+    },
+    {
+        "question": "What is the latitude of Guam?",
+        "answer": "13.4443"
+    },
+    {
+        "question": "Does Northern Mariana Islands have any reported deaths as of 1/22/20?",
+        "answer": "No"
+    },
+    {
+        "question": "Which Puerto Rican municipality has the highest FIPS code in the dataset?",
+        "answer": "Florida"
+    },
+    {
+        "question": "What is the Combined_Key for the location with FIPS code 72019?",
+        "answer": "Barranquitas, Puerto Rico, US"
+    },
+    {
+        "question": "Are there any confirmed cases in Aguada, Puerto Rico, as of 1/22/20?",
+        "answer": "No"
+    },
+    {
+        "question": "Which location has the lowest latitude in the dataset?",
+        "answer": "Arroyo, Puerto Rico, US"
+    },
+    {
+        "question": "How many locations in the dataset are part of Puerto Rico?",
+        "answer": "31"
+    }
+]

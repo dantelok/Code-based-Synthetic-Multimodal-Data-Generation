@@ -1,3 +1,4 @@
+
 # Code-based Synthetic Multimodal Data Generation
 
 A Next.js application developed for the Aya Expedition 2025, focusing on generating synthetic multimodal data for training and enhancing Visual Language Models (VLMs).
@@ -81,10 +82,5 @@ yarn dev
 - Cohere AI API
 - Matplotlib (for chart generation)
 
-## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
