@@ -10,6 +10,15 @@
 !.yarn/releases
 !.yarn/versions
 
+
+# .gitignore
+
+# Node modules
+node_modules/
+
+# Next.js build output
+.next/
+
 # testing
 /coverage
 
