@@ -82,5 +82,3 @@ yarn dev
 - Cohere AI API
 - Matplotlib (for chart generation)
 
-
-
