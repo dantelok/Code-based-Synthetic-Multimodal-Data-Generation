@@ -3,6 +3,10 @@ import { CohereClientV2 } from 'cohere-ai';
 
 const MAX_RETRIES = 3;
 
+// Cohere's current vision model. The original Aya Vision models this project
+// was built on (c4ai-aya-vision-8b/32b) have since been sunset by Cohere.
+const VISION_MODEL = 'command-a-vision-07-2025';
+
 export async function POST(request: Request) {
   try {
     const { prompt, imageBase64, apiKey } = await request.json();
@@ -38,7 +42,7 @@ export async function POST(request: Request) {
     while (attempts < MAX_RETRIES) {
       try {
         const response = await cohere.chat({
-          model: 'c4ai-aya-vision-32b',
+          model: VISION_MODEL,
           messages: [
             {
               role: 'user',

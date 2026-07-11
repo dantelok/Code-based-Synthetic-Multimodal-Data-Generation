@@ -181,4 +181,7 @@ This project is being hardened from a hackathon prototype toward a polished open
 
 ## License
 
-No license file is present yet. Until one is added, all rights are reserved — adding an OSI license (e.g. MIT) is on the roadmap so others can freely use and contribute.
+Released under the [MIT License](LICENSE) — free to use, modify, and distribute.
+
+Note: the sample data under `data/` (Johns Hopkins COVID-19 dataset) is provided by
+its original authors under their own terms; the MIT license covers this project's code.
