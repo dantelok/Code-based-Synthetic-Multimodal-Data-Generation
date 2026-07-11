@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import random
+import signal
 import subprocess
 import sys
 import tempfile
@@ -86,6 +87,9 @@ def _canonical_chart_key(slug: str) -> str:
 DEFAULT_EXEC_TIMEOUT = 60  # seconds
 
 
+_SIGXCPU = getattr(signal, "SIGXCPU", None)
+
+
 def _cpu_limit(seconds: int):
     """Return a preexec_fn that caps CPU time on POSIX, or None elsewhere."""
     try:
@@ -107,7 +111,8 @@ def run_generated_code(code: str, batch_size: int, timeout: int = DEFAULT_EXEC_T
     take down the parent process. A headless matplotlib backend and the expected
     ``batch_size`` variable are injected as a preamble.
 
-    Raises ``RuntimeError`` on non-zero exit, and ``TimeoutError`` on timeout.
+    Raises ``RuntimeError`` on non-zero exit, and ``TimeoutError`` on timeout
+    (whether the wall-clock deadline or the CPU-time backstop tripped first).
     """
     preamble = (
         "import matplotlib\n"
@@ -118,14 +123,19 @@ def run_generated_code(code: str, batch_size: int, timeout: int = DEFAULT_EXEC_T
         tmp.write(preamble + code)
         tmp_path = tmp.name
     try:
+        # The wall-clock timeout is the primary guard; the CPU limit is a
+        # backstop set higher so it can't win the race and turn a timeout into
+        # a generic non-zero exit (behaviour differs across platforms otherwise).
         proc = subprocess.run(
             [sys.executable, tmp_path],
             capture_output=True,
             text=True,
             timeout=timeout,
-            preexec_fn=_cpu_limit(timeout),
+            preexec_fn=_cpu_limit(timeout + 5),
         )
         if proc.returncode != 0:
+            if _SIGXCPU is not None and proc.returncode == -_SIGXCPU:
+                raise TimeoutError("generated code exceeded its CPU-time limit")
             raise RuntimeError(
                 f"generated code exited with status {proc.returncode}: "
                 f"{proc.stderr.strip()[-500:]}"
