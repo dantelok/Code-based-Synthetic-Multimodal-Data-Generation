@@ -10,7 +10,10 @@ import seaborn as sns
 import json
 from typing import List, Dict
 
-DEFAULT_VLM_MODEL = "c4ai-aya-vision-32b"
+# Cohere's current vision model. The original Aya Vision models this project was
+# built on (c4ai-aya-vision-8b/32b) have since been sunset by Cohere, so the
+# default is the maintained successor. Override with --vlm-model if needed.
+DEFAULT_VLM_MODEL = "command-a-vision-07-2025"
 
 
 def evaluate_charts(csv_path: str, chart_type: str, batch_size: int, output_size: int, generated_code: str) -> Dict:
@@ -223,8 +226,10 @@ def vlm_evaluation(
 
     co = cohere.ClientV2(api_key=ensure_api_key())
 
-    # Load data (optional, for possible extensions)
-    df = pd.read_csv(csv_path)[:batch_size]
+    # A compact sample of the source data for context (a full dataframe dump
+    # bloats the prompt and can make the model return no valid response).
+    df = pd.read_csv(csv_path).head(batch_size)
+    data_context = df.head(5).to_markdown(index=False)
 
     # Load all image files
     image_files = sorted([
@@ -242,49 +247,55 @@ def vlm_evaluation(
     results: List[Dict] = []
     for img_file in image_files:
         img_path = os.path.join(image_folder, img_file)
+        mime = "image/png" if img_file.lower().endswith(".png") else "image/jpeg"
 
         with open(img_path, "rb") as f:
-            base64_image_url = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+            base64_image_url = f"data:{mime};base64,{base64.b64encode(f.read()).decode('utf-8')}"
 
         # Build prompt
         prompt = f"""
         You are an expert in data visualization and question-answer validation.
-        
+
         You are shown a chart (image), and a set of QA pairs that are claimed to be derived from that chart.
-        Also, the charts and QA pairs are generated from {df}.
-        
+        For context, here is a sample of the source data the chart was generated from:
+
+        {data_context}
+
         Your tasks:
         1. Determine if the **answer is correct** based on the chart.
         2. Determine if the **question is relevant** to the chart.
         3. Identify any **missing data** or misleading visuals in the chart.
-        
+
         Evaluate each QA pair below:
-        
+
         {qa_block}
-        
+
         Respond with a numbered list for each QA pair:
         - Is the answer correct?
         - Is the question relevant?
         - Justify briefly.
-        
+
         Also note any issues with the chart itself at the end of the response.
         """
 
-        # Call Cohere API
-        response = co.chat(
-            model=model,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": base64_image_url}},
-                    ],
-                }
-            ],
-        )
+        # Call Cohere API (one bad image should not abort the whole run).
+        try:
+            response = co.chat(
+                model=model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": base64_image_url}},
+                        ],
+                    }
+                ],
+            )
+            evaluation_text = response.message.content[0].text
+        except Exception as exc:  # noqa: BLE001 - keep going across images
+            evaluation_text = f"ERROR: VLM evaluation failed for this image: {exc}"
 
-        evaluation_text = response.message.content[0].text
         print(f"\n\n=== Evaluation for {img_file} ===")
         print(evaluation_text)
         results.append({"image": img_file, "evaluation": evaluation_text})

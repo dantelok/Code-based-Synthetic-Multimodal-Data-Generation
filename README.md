@@ -130,7 +130,10 @@ main.py         Pipeline CLI entrypoint (charts / qa / evaluate / run)
 
 - **App:** Next.js 15, React 19, TypeScript, Tailwind CSS, Pyodide (in-browser Python)
 - **Pipeline:** Python, pandas, matplotlib, seaborn
-- **Models:** Cohere `command-a-03-2025` (code + QA), `c4ai-aya-vision-32b` (VLM judge)
+- **Models:** Cohere `command-a-03-2025` (code + QA), `command-a-vision-07-2025` (VLM judge)
+  - *Historical note:* this project was built for the Aya Expedition using Aya Vision
+    (`c4ai-aya-vision-8b/32b`). Those models have since been sunset by Cohere, so the
+    default judge is the maintained successor. Override with `--vlm-model`.
 
 ## Roadmap
 
