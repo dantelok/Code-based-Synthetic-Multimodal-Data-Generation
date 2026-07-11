@@ -10,6 +10,7 @@ import seaborn as sns
 import json
 from typing import List, Dict
 
+
 def evaluate_charts(csv_path: str, chart_type: str, batch_size: int, output_size: int, generated_code: str) -> Dict:
     """
     Evaluates the generated chart code for correctness, completeness, and diversity.
@@ -208,8 +209,20 @@ def vlm_evaluation(csv_path: str, batch_size: int, image_folder: str, qa_pairs: 
     Returns:
         None
     """
-    # Initialize Cohere client
-    co = cohere.ClientV2(api_key="REDACTED_HACKATHON_KEY")  # Replace with your secure key
+    # Initialize Cohere client from the COHERE_API_KEY environment variable
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+    except ImportError:
+        pass  # python-dotenv is optional; env vars can be exported directly.
+    api_key = os.environ.get("COHERE_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "COHERE_API_KEY is not set. Copy .env.example to .env and add your key, "
+            "or export COHERE_API_KEY in your shell."
+        )
+    co = cohere.ClientV2(api_key=api_key)
 
     # Load data (optional, for possible extensions)
     df = pd.read_csv(csv_path)[:batch_size]

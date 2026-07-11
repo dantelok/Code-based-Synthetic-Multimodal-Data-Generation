@@ -1,5 +1,7 @@
-cohere
-seaborn
-pandas
-numpy
-matplotlib
+cohere>=5.13,<6
+seaborn>=0.13,<0.14
+pandas>=2.0,<3
+numpy>=1.26,<3
+matplotlib>=3.8,<4
+tabulate>=0.9,<0.10
+python-dotenv>=1.0,<2

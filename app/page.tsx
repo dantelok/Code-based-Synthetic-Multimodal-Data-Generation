@@ -61,7 +61,7 @@ export default function Home() {
           {messages.length === 0 ? (
             <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-200 tracking-wide text-center px-4">
-                {getGreeting()}, Reuben
+                {getGreeting()}
               </h1>
             </div>
           ) : (

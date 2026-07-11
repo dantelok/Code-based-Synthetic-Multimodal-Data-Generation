@@ -1,4 +1,24 @@
+import os
+
 import cohere
+
+
+def _get_client() -> "cohere.ClientV2":
+    """Create a Cohere client from the COHERE_API_KEY environment variable."""
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+    except ImportError:
+        pass  # python-dotenv is optional; env vars can be exported directly.
+    api_key = os.environ.get("COHERE_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "COHERE_API_KEY is not set. Copy .env.example to .env and add your key, "
+            "or export COHERE_API_KEY in your shell."
+        )
+    return cohere.ClientV2(api_key=api_key)
+
 
 def generate_code_block(csv_path, chart_type, batch_size, output_size):
     prompt = f"""
@@ -33,7 +53,7 @@ def generate_code_block(csv_path, chart_type, batch_size, output_size):
     Only output clean, complete Python code.
     """
 
-    co = cohere.ClientV2(api_key="REDACTED_HACKATHON_KEY")
+    co = _get_client()
 
     response = co.chat(
         model="command-a-03-2025",
@@ -67,7 +87,7 @@ def generate_qa_pairs(df, batch_size, output_size):
     Only output the JSON data.
     """
 
-    co = cohere.ClientV2(api_key="REDACTED_HACKATHON_KEY")
+    co = _get_client()
 
     response = co.chat(
         model="command-a-03-2025",
