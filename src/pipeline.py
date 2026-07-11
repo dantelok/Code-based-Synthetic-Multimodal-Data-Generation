@@ -46,7 +46,7 @@ from src.generation import (
     generate_code_block,
     generate_qa_pairs,
 )
-from src.utils import clean_code_block
+from src.utils import clean_code_block, extract_json
 
 logger = logging.getLogger("pipeline")
 
@@ -211,8 +211,7 @@ def generate_qa(
     for attempt in range(1, max_retries + 1):
         try:
             raw = generate_qa_pairs(df, batch_size, output_size, model=model)
-            cleaned = raw.strip().strip("```json").strip("```").strip()
-            qa_pairs = json.loads(cleaned)
+            qa_pairs = extract_json(raw)
             with open(qa_path, "w") as fh:
                 json.dump(qa_pairs, fh, indent=4)
             logger.info("Generated %d QA pairs -> %s (attempt %d)", len(qa_pairs), qa_path, attempt)
@@ -265,8 +264,29 @@ def run_evaluation(
     report["qa_pairs"] = evaluate_qa_pairs(csv_path, batch_size, output_size, qa_pairs)
 
     if os.path.isdir(image_dir) and os.listdir(image_dir):
-        report["vlm"] = vlm_evaluation(csv_path, batch_size, image_dir, qa_pairs, model=vlm_model)
+        vlm = vlm_evaluation(csv_path, batch_size, image_dir, qa_pairs, model=vlm_model)
+        report["vlm"] = vlm
+        report["vlm_summary"] = _summarize_vlm(vlm)
+        logger.info(
+            "VLM judge: %d/%d images scored; mean answer accuracy %.2f, relevance %.2f",
+            report["vlm_summary"]["scored_images"],
+            len(vlm),
+            report["vlm_summary"]["mean_answer_accuracy"],
+            report["vlm_summary"]["mean_relevance"],
+        )
     else:
         logger.warning("No chart images found at %s; skipping VLM evaluation.", image_dir)
 
     return report
+
+
+def _summarize_vlm(vlm: List[Dict]) -> Dict:
+    """Aggregate per-image VLM verdicts into mean answer-accuracy/relevance."""
+    scored = [r for r in vlm if "answer_accuracy" in r]
+    n = len(scored)
+    return {
+        "scored_images": n,
+        "unparsed_images": len(vlm) - n,
+        "mean_answer_accuracy": sum(r["answer_accuracy"] for r in scored) / n if n else 0.0,
+        "mean_relevance": sum(r["relevance"] for r in scored) / n if n else 0.0,
+    }

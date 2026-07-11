@@ -15,11 +15,12 @@ def chart_csv(tmp_path):
     return str(csv)
 
 
-# Executable code whose *text* also contains the substrings the heuristic scores on
-# ("value_counts", "sample"), so it both runs and scores fully.
+# Code that makes the actual calls the AST-based scorer looks for: a bar plot,
+# a render call, titles/labels/legend, and a real sampling call.
 GOOD_BAR_CODE = """
 import matplotlib.pyplot as plt
-# uses value_counts and sample for scoring
+import random
+rows = random.sample(range(100), 3)
 vals = [1, 2, 3]
 plt.title('t'); plt.xlabel('x'); plt.ylabel('y')
 plt.bar(['a', 'b', 'c'], vals)
@@ -33,6 +34,19 @@ def test_evaluate_charts_full_score(chart_csv):
     assert result["correctness"] == 1.0
     assert result["completeness"] == pytest.approx(1.0)
     assert result["diversity"] == 1.0
+
+
+def test_evaluate_charts_wrong_plot_call(chart_csv):
+    # A pie() call for a 'bar' chart should not earn the plot-type correctness point.
+    pie_code = "import matplotlib.pyplot as plt\nplt.pie([1, 2, 3])\nplt.show()\n"
+    result = evaluate_charts(chart_csv, "bar", 3, 1, pie_code)
+    assert result["correctness"] == 0.5  # render call only, no matching plot call
+
+
+def test_evaluate_charts_syntax_error(chart_csv):
+    result = evaluate_charts(chart_csv, "bar", 3, 1, "plt.bar(  # unclosed")
+    assert result["correctness"] == 0.0
+    assert any("does not parse" in c for c in result["comments"])
 
 
 def test_evaluate_charts_unsupported_type(chart_csv):

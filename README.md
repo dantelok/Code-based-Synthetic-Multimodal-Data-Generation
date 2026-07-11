@@ -100,9 +100,15 @@ COVID-19 dataset run, so `python main.py run` works out of the box once your key
 Under the hood:
 
 - `src/generation.py` — LLM calls: `generate_code_block(...)` (chart code) and `generate_qa_pairs(...)`
-- `src/evaluation.py` — heuristic chart/QA scoring and `vlm_evaluation(...)` (VLM-as-judge)
+- `src/evaluation.py` — chart/QA scoring and `vlm_evaluation(...)` (VLM-as-judge)
+- `src/metrics.py` — the scoring itself: AST analysis of the chart code (does it call
+  the right plot for the chart type, render it, label axes, sample rows?) and numeric
+  grounding of QA answers against the data (with tolerance), rather than substring checks
 - `src/pipeline.py` — orchestration: retries, logging, and on-disk output layout
-- `src/utils.py` — helpers (e.g. stripping markdown fences from LLM output)
+- `src/utils.py` — helpers (markdown-fence stripping, robust JSON extraction)
+
+The VLM judge returns structured per-QA verdicts (`answer_correct` / `question_relevant`),
+which the pipeline aggregates into a `vlm_summary` (mean answer accuracy and relevance).
 
 Outputs are written under `--output-dir` (default `generated/`):
 
@@ -163,7 +169,8 @@ This project is being hardened from a hackathon prototype toward a polished open
 - [x] Isolate generated code in a subprocess with a timeout (`exec()` hardening)
 - [x] Tests (pytest) and CI (lint + tests for Python, lint + build for the web app)
 - [x] Refactor the large `AiMessage` component into focused hooks/components
-- [ ] Replace substring-based evaluation heuristics with stronger metrics
+- [x] Replace substring-based evaluation heuristics with AST analysis, numeric
+      grounding, and a structured VLM judge
 - [ ] Publish the generated dataset with a dataset card
 
 ## Team

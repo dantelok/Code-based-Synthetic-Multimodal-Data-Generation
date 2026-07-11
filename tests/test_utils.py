@@ -1,6 +1,8 @@
-"""Tests for src.utils.clean_code_block (no API key required)."""
+"""Tests for src.utils (no API key required)."""
 
-from src.utils import clean_code_block
+import pytest
+
+from src.utils import clean_code_block, extract_json
 
 
 def test_strips_python_fence():
@@ -26,3 +28,22 @@ def test_handles_leading_and_trailing_whitespace():
 def test_preserves_inner_blank_lines():
     raw = "```python\na = 1\n\nb = 2\n```"
     assert clean_code_block(raw) == "a = 1\n\nb = 2"
+
+
+def test_extract_json_plain():
+    assert extract_json('[{"question": "q", "answer": "a"}]') == [{"question": "q", "answer": "a"}]
+
+
+def test_extract_json_fenced():
+    raw = '```json\n{"a": 1, "b": [2, 3]}\n```'
+    assert extract_json(raw) == {"a": 1, "b": [2, 3]}
+
+
+def test_extract_json_with_leading_prose():
+    raw = 'Here are the pairs:\n[{"q": 1}]\nThanks!'
+    assert extract_json(raw) == [{"q": 1}]
+
+
+def test_extract_json_raises_when_absent():
+    with pytest.raises((ValueError, Exception)):
+        extract_json("no json at all")

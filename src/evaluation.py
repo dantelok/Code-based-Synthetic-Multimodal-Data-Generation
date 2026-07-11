@@ -4,10 +4,17 @@ import os
 from typing import Dict, List
 
 import cohere
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import seaborn as sns
+
+from src.metrics import (
+    extract_call_names,
+    extract_numbers,
+    numbers_match,
+    score_chart_completeness,
+    score_chart_correctness,
+    score_chart_diversity,
+)
+from src.utils import extract_json
 
 DEFAULT_VLM_MODEL = "command-a-vision-07-2025"
 
@@ -63,48 +70,21 @@ def evaluate_charts(csv_path: str, chart_type: str, batch_size: int, output_size
             evaluation["comments"].append(f"Insufficient columns for {chart_type} chart.")
             return evaluation
 
-        # Execute the generated code in a controlled environment
-        local_vars = {'file_path': csv_path, 'chart_type': chart_type, 'batch_size': batch_size, 'output_size': output_size}
-        exec(generated_code, {'pd': pd, 'np': np, 'plt': plt, 'sns': sns}, local_vars)
+        # Statically analyse the generated code by the calls it makes (no exec:
+        # the pipeline already renders the chart in a sandboxed subprocess).
+        try:
+            calls = extract_call_names(generated_code)
+        except SyntaxError as exc:
+            evaluation["comments"].append(f"Generated code does not parse: {exc}")
+            return evaluation
 
-        # Correctness: Check if the chart type matches the implementation
-        correctness_score = 0
-        if chart_type in ['bar', 'pie', 'treemap', 'donut'] and 'value_counts' in generated_code:
-            correctness_score += 0.5
-        if chart_type in ['scatter', 'line', 'radar', 'heatmap'] and any(x in generated_code for x in ['scatterplot', 'lineplot', 'heatmap']):
-            correctness_score += 0.5
-        if chart_type in ['box', 'violin'] and any(x in generated_code for x in ['boxplot', 'violinplot']):
-            correctness_score += 0.5
-        if chart_type == 'time_series' and 'lineplot' in generated_code and 'datetime' in generated_code:
-            correctness_score += 0.5
-        if 'plt.show()' in generated_code:
-            correctness_score += 0.5
-        evaluation["correctness"] = correctness_score
-
-        # Completeness: Check for labels, titles, and legends
-        completeness_score = 0
-        if 'plt.title' in generated_code:
-            completeness_score += 0.3
-        if 'plt.xlabel' in generated_code:
-            completeness_score += 0.3
-        if 'plt.ylabel' in generated_code:
-            completeness_score += 0.3
-        if 'plt.legend' in generated_code or 'autopct' in generated_code:
-            completeness_score += 0.1
-        evaluation["completeness"] = min(completeness_score, 1.0)
-
-        # Diversity: Check if random sampling is used and different columns are plotted
-        diversity_score = 0
-        if 'random.choice' in generated_code or 'sample' in generated_code:
-            diversity_score += 0.5
-        if len(numeric_cols) > 2 or len(categorical_cols) > 2:
-            diversity_score += 0.5  # Potential for diverse column usage
-        evaluation["diversity"] = diversity_score
-
-        evaluation["comments"].append("Chart generation executed successfully.")
+        evaluation["correctness"] = score_chart_correctness(calls, chart_type)
+        evaluation["completeness"] = score_chart_completeness(calls, generated_code)
+        evaluation["diversity"] = score_chart_diversity(calls, len(numeric_cols), len(categorical_cols))
+        evaluation["comments"].append("Chart code analysed successfully.")
 
     except Exception as e:
-        evaluation["comments"].append(f"Error executing chart code: {str(e)}")
+        evaluation["comments"].append(f"Error evaluating chart code: {str(e)}")
 
     return evaluation
 
@@ -139,7 +119,9 @@ def evaluate_qa_pairs(csv_path: str, batch_size: int, output_size: int, qa_pairs
             evaluation["comments"].append(f"Expected {output_size} QA pairs, got {len(qa_pairs)}.")
             return evaluation
 
-        # Correctness: Verify answers align with the data
+        # Correctness: ground each answer against the data. Prefer numeric
+        # matching (with tolerance) against the column(s) the question refers to,
+        # and fall back to string containment for non-numeric answers.
         correct_count = 0
         for pair in qa_pairs:
             question = pair.get("question", "")
@@ -150,12 +132,22 @@ def evaluate_qa_pairs(csv_path: str, batch_size: int, output_size: int, qa_pairs
                 evaluation["comments"].append("Empty question or answer detected.")
                 continue
 
-            # Check if answer can be verified against the data
-            # For simplicity, assume factual questions reference specific values
-            for col in df.columns:
-                if col in question.lower() and any(str(val) in answer for val in df[col].astype(str)):
-                    correct_count += 1
+            answer_numbers = extract_numbers(answer)
+            referenced_cols = [c for c in df.columns if c.lower() in question.lower()]
+            cols_to_check = referenced_cols or list(df.columns)
+
+            matched = False
+            for col in cols_to_check:
+                col_values = df[col].astype(str).tolist()
+                col_numbers = extract_numbers(" ".join(col_values))
+                if answer_numbers and numbers_match(answer_numbers, col_numbers):
+                    matched = True
                     break
+                if col.lower() in question.lower() and any(v in answer for v in col_values):
+                    matched = True
+                    break
+            if matched:
+                correct_count += 1
 
         evaluation["correctness"] = (correct_count / output_size) if output_size > 0 else 0.0
 
@@ -189,8 +181,6 @@ def evaluate_qa_pairs(csv_path: str, batch_size: int, output_size: int, qa_pairs
 
         evaluation["comments"].append("QA pairs evaluated successfully.")
 
-    except json.JSONDecodeError:
-        evaluation["comments"].append("Invalid JSON format for QA pairs.")
     except Exception as e:
         evaluation["comments"].append(f"Error evaluating QA pairs: {str(e)}")
 
@@ -215,7 +205,22 @@ def vlm_evaluation(
         model (str): Cohere vision model to use as the judge.
 
     Returns:
-        List[Dict]: One {'image': str, 'evaluation': str} record per chart image.
+        List[Dict]: One record per chart image. On a successful judge response::
+
+            {
+                "image": str,
+                "verdicts": [
+                    {"question": str, "answer_correct": bool,
+                     "question_relevant": bool, "justification": str},
+                    ...
+                ],
+                "chart_issues": str,
+                "answer_accuracy": float,   # fraction of answers judged correct
+                "relevance": float,         # fraction of questions judged relevant
+            }
+
+        If the judge response can't be parsed as JSON, the record instead
+        carries ``{"image": str, "raw": str, "error": str}``.
     """
     # Initialize Cohere client from the COHERE_API_KEY environment variable
     from src.generation import ensure_api_key
@@ -248,7 +253,7 @@ def vlm_evaluation(
         with open(img_path, "rb") as f:
             base64_image_url = f"data:{mime};base64,{base64.b64encode(f.read()).decode('utf-8')}"
 
-        # Build prompt
+        # Build prompt — ask for machine-readable JSON so verdicts can be scored.
         prompt = f"""
         You are an expert in data visualization and question-answer validation.
 
@@ -257,21 +262,21 @@ def vlm_evaluation(
 
         {data_context}
 
-        Your tasks:
-        1. Determine if the **answer is correct** based on the chart.
-        2. Determine if the **question is relevant** to the chart.
-        3. Identify any **missing data** or misleading visuals in the chart.
+        For each QA pair, decide from the chart:
+        - is the answer correct?
+        - is the question relevant to the chart?
 
-        Evaluate each QA pair below:
+        QA pairs:
 
         {qa_block}
 
-        Respond with a numbered list for each QA pair:
-        - Is the answer correct?
-        - Is the question relevant?
-        - Justify briefly.
-
-        Also note any issues with the chart itself at the end of the response.
+        Respond with ONLY a JSON object of exactly this shape (no prose, no markdown):
+        {{
+          "verdicts": [
+            {{"question": "<the question>", "answer_correct": true, "question_relevant": true, "justification": "<brief>"}}
+          ],
+          "chart_issues": "<any missing data or misleading visuals, or empty string>"
+        }}
         """
 
         # Call Cohere API (one bad image should not abort the whole run).
@@ -290,10 +295,27 @@ def vlm_evaluation(
             )
             evaluation_text = response.message.content[0].text
         except Exception as exc:  # noqa: BLE001 - keep going across images
-            evaluation_text = f"ERROR: VLM evaluation failed for this image: {exc}"
+            results.append({"image": img_file, "raw": "", "error": str(exc)})
+            print(f"\n\n=== Evaluation for {img_file} ===\nERROR: {exc}")
+            continue
+
+        # Parse the structured verdicts; fall back to raw text if it isn't JSON.
+        try:
+            parsed = extract_json(evaluation_text)
+            verdicts = parsed.get("verdicts", []) if isinstance(parsed, dict) else []
+            n = len(verdicts) or 1
+            record = {
+                "image": img_file,
+                "verdicts": verdicts,
+                "chart_issues": parsed.get("chart_issues", "") if isinstance(parsed, dict) else "",
+                "answer_accuracy": sum(1 for v in verdicts if v.get("answer_correct")) / n,
+                "relevance": sum(1 for v in verdicts if v.get("question_relevant")) / n,
+            }
+        except (ValueError, AttributeError) as exc:
+            record = {"image": img_file, "raw": evaluation_text, "error": f"unparseable judge response: {exc}"}
 
         print(f"\n\n=== Evaluation for {img_file} ===")
-        print(evaluation_text)
-        results.append({"image": img_file, "evaluation": evaluation_text})
+        print(json.dumps(record, indent=2, default=str))
+        results.append(record)
 
     return results
