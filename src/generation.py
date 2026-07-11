@@ -2,9 +2,16 @@ import os
 
 import cohere
 
+DEFAULT_TEXT_MODEL = "command-a-03-2025"
+DEFAULT_CHART_DIR = "./generated/cohere_chart_datasets/"
 
-def _get_client() -> "cohere.ClientV2":
-    """Create a Cohere client from the COHERE_API_KEY environment variable."""
+
+def ensure_api_key() -> str:
+    """Return COHERE_API_KEY (loading .env if present), or raise a clear error.
+
+    Call this once up front so a missing key fails fast instead of being
+    retried as if it were a transient generation failure.
+    """
     try:
         from dotenv import load_dotenv
 
@@ -17,10 +24,22 @@ def _get_client() -> "cohere.ClientV2":
             "COHERE_API_KEY is not set. Copy .env.example to .env and add your key, "
             "or export COHERE_API_KEY in your shell."
         )
-    return cohere.ClientV2(api_key=api_key)
+    return api_key
 
 
-def generate_code_block(csv_path, chart_type, batch_size, output_size):
+def _get_client() -> "cohere.ClientV2":
+    """Create a Cohere client from the COHERE_API_KEY environment variable."""
+    return cohere.ClientV2(api_key=ensure_api_key())
+
+
+def generate_code_block(
+    csv_path,
+    chart_type,
+    batch_size,
+    output_size,
+    output_dir=DEFAULT_CHART_DIR,
+    model=DEFAULT_TEXT_MODEL,
+):
     prompt = f"""
     You are a Python code assistant. Write Python code to generate a {chart_type} using the matplotlib, seaborn library from a CSV dataset.
 
@@ -44,7 +63,7 @@ def generate_code_block(csv_path, chart_type, batch_size, output_size):
     7. Include necessary imports, inline comments, and a final command to display or render the chart:
         - `plt.show()` for matplotlib/seaborn
     8. Use the data as random as possible, e.g. generate each chart with different rows and columns
-    9. Save the chart to the path `./generated/cohere_chart_datasets/` + image_file name
+    9. Save the chart to the path `{output_dir}` + image_file name. Assume this directory already exists.
 
     Assume:
     - The `batch_size` variable is predefined.
@@ -56,14 +75,14 @@ def generate_code_block(csv_path, chart_type, batch_size, output_size):
     co = _get_client()
 
     response = co.chat(
-        model="command-a-03-2025",
+        model=model,
         messages=[{"role": "user", "content": prompt}],
     )
 
     return response.message.content[0].text
 
 
-def generate_qa_pairs(df, batch_size, output_size):
+def generate_qa_pairs(df, batch_size, output_size, model=DEFAULT_TEXT_MODEL):
     df_sample = df.head(batch_size)
     table_text = df_sample.to_markdown(index=False)
 
@@ -90,7 +109,7 @@ def generate_qa_pairs(df, batch_size, output_size):
     co = _get_client()
 
     response = co.chat(
-        model="command-a-03-2025",
+        model=model,
         messages=[{"role": "user", "content": prompt}],
     )
 

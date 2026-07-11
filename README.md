@@ -76,15 +76,40 @@ pip install -r requirements.txt
 cp .env.example .env             # then edit .env and paste your key
 ```
 
-The pipeline is driven by `main.py` and the modules in `src/`:
+The pipeline is a command-line tool (`main.py`) with four subcommands:
 
-- `src/generation.py` — `generate_code_block(...)` (chart code) and `generate_qa_pairs(...)`
+```bash
+# Full pipeline: generate charts -> generate QA pairs -> evaluate
+python main.py run --csv data/covid-19-dataset/usa_county_wise.csv
+
+# Or run stages individually:
+python main.py charts --chart-types "Bar Chart" "Line Chart" --output-size 4
+python main.py qa --output-size 8
+python main.py evaluate            # scores artifacts from a previous run
+
+python main.py --help              # all commands
+python main.py run --help          # all flags for a command
+```
+
+Common flags: `--csv`, `--output-dir`, `--batch-size`, `--output-size`, `--model`,
+`--vlm-model`, `--max-retries`, `--seed`, `-v/--verbose`. Defaults produce the sample
+COVID-19 dataset run, so `python main.py run` works out of the box once your key is set.
+
+Under the hood:
+
+- `src/generation.py` — LLM calls: `generate_code_block(...)` (chart code) and `generate_qa_pairs(...)`
 - `src/evaluation.py` — heuristic chart/QA scoring and `vlm_evaluation(...)` (VLM-as-judge)
+- `src/pipeline.py` — orchestration: retries, logging, and on-disk output layout
 - `src/utils.py` — helpers (e.g. stripping markdown fences from LLM output)
 
-Generated charts are written to `generated/cohere_chart_datasets/` and QA pairs to `generated/qa_pairs.json` (a sample is included so you can see the expected format).
+Outputs are written under `--output-dir` (default `generated/`):
 
-> **Note:** `main.py` currently reads its configuration from variables at the top of the file and has the generation/evaluation stages commented in/out by hand. Turning it into a proper CLI (`generate` / `evaluate` / `run` subcommands with flags) is the next planned improvement — see the roadmap.
+```
+generated/
+├── cohere_chart_datasets/   # rendered chart images (.png)
+├── chart_code/              # the LLM-generated code for each chart type
+└── qa_pairs.json            # generated QA pairs (a sample is committed)
+```
 
 > ⚠️ **Security:** the pipeline executes LLM-generated Python with `exec()`. In the web app this is sandboxed by Pyodide, but the Python pipeline runs it in your local process. Only run it on data and prompts you trust. Hardening this (restricted namespace, timeouts, subprocess isolation) is on the roadmap.
 
@@ -94,11 +119,11 @@ Generated charts are written to `generated/cohere_chart_datasets/` and QA pairs 
 
 ```
 app/            Next.js web app (chat UI, in-browser Pyodide chart execution)
-src/            Python research pipeline (generation, evaluation, utils, notebook)
+src/            Python research pipeline (generation, evaluation, pipeline, utils, notebook)
 data/           Sample source datasets (COVID-19)
 generated/      Pipeline outputs (chart images are git-ignored; qa_pairs.json kept as a sample)
 images/         README assets (pipeline diagram, demo GIFs)
-main.py         Pipeline entrypoint
+main.py         Pipeline CLI entrypoint (charts / qa / evaluate / run)
 ```
 
 ## Tech stack
@@ -113,7 +138,7 @@ This project is being hardened from a hackathon prototype toward a polished open
 
 - [x] Remove hardcoded API keys; load from environment / `.env`
 - [x] Stop committing generated images; pin Python dependencies
-- [ ] Turn the pipeline into a configurable CLI (no more editing globals)
+- [x] Turn the pipeline into a configurable CLI (no more editing globals)
 - [ ] Sandbox `exec()` of generated code (restricted namespace + timeout)
 - [ ] Tests (pytest) and CI (lint, typecheck, build)
 - [ ] Refactor the large `AiMessage` component into focused hooks/components

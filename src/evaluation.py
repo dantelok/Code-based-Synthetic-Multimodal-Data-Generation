@@ -10,6 +10,8 @@ import seaborn as sns
 import json
 from typing import List, Dict
 
+DEFAULT_VLM_MODEL = "c4ai-aya-vision-32b"
+
 
 def evaluate_charts(csv_path: str, chart_type: str, batch_size: int, output_size: int, generated_code: str) -> Dict:
     """
@@ -196,7 +198,13 @@ def evaluate_qa_pairs(csv_path: str, batch_size: int, output_size: int, qa_pairs
     return evaluation
 
 
-def vlm_evaluation(csv_path: str, batch_size: int, image_folder: str, qa_pairs: list):
+def vlm_evaluation(
+    csv_path: str,
+    batch_size: int,
+    image_folder: str,
+    qa_pairs: list,
+    model: str = DEFAULT_VLM_MODEL,
+) -> List[Dict]:
     """
     Evaluate multiple chart images against a shared set of QA pairs using Aya Vision.
 
@@ -205,24 +213,15 @@ def vlm_evaluation(csv_path: str, batch_size: int, image_folder: str, qa_pairs: 
         batch_size (int): Number of rows to load (for context; optional).
         image_folder (str): Path to folder containing chart images.
         qa_pairs (list): List of {'question': str, 'answer': str} dicts.
+        model (str): Cohere vision model to use as the judge.
 
     Returns:
-        None
+        List[Dict]: One {'image': str, 'evaluation': str} record per chart image.
     """
     # Initialize Cohere client from the COHERE_API_KEY environment variable
-    try:
-        from dotenv import load_dotenv
+    from src.generation import ensure_api_key
 
-        load_dotenv()
-    except ImportError:
-        pass  # python-dotenv is optional; env vars can be exported directly.
-    api_key = os.environ.get("COHERE_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "COHERE_API_KEY is not set. Copy .env.example to .env and add your key, "
-            "or export COHERE_API_KEY in your shell."
-        )
-    co = cohere.ClientV2(api_key=api_key)
+    co = cohere.ClientV2(api_key=ensure_api_key())
 
     # Load data (optional, for possible extensions)
     df = pd.read_csv(csv_path)[:batch_size]
@@ -240,6 +239,7 @@ def vlm_evaluation(csv_path: str, batch_size: int, image_folder: str, qa_pairs: 
     ])
 
     # Loop through each image
+    results: List[Dict] = []
     for img_file in image_files:
         img_path = os.path.join(image_folder, img_file)
 
@@ -272,7 +272,7 @@ def vlm_evaluation(csv_path: str, batch_size: int, image_folder: str, qa_pairs: 
 
         # Call Cohere API
         response = co.chat(
-            model="c4ai-aya-vision-32b",
+            model=model,
             messages=[
                 {
                     "role": "user",
@@ -284,5 +284,9 @@ def vlm_evaluation(csv_path: str, batch_size: int, image_folder: str, qa_pairs: 
             ],
         )
 
+        evaluation_text = response.message.content[0].text
         print(f"\n\n=== Evaluation for {img_file} ===")
-        print(response.message.content[0].text)
+        print(evaluation_text)
+        results.append({"image": img_file, "evaluation": evaluation_text})
+
+    return results
