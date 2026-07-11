@@ -2,7 +2,6 @@ import React from 'react'
 import {
   Avatar,
   AvatarFallback,
-  AvatarImage,
 } from "@/components/ui/avatar"
 import { FaFileCsv } from "react-icons/fa";
 
@@ -18,7 +17,6 @@ const UserMessage: React.FC<UserMessageProps> = ({ prompt, fileType, fileName })
       <div className='flex gap-2 sm:gap-4'>
         <div className="shrink-0">
           <Avatar className="w-10 h-10 sm:w-14 sm:h-14">
-            <AvatarImage src="/reuben.jpg" alt='User' className="w-full h-full" />
             <AvatarFallback>U</AvatarFallback>
           </Avatar>
         </div>

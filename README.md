@@ -21,11 +21,6 @@ High-quality multimodal datasets rarely contain structured **chart/plot** data, 
 
 The result is a scalable, low-cost, diverse dataset — plus an automated quality filter.
 
-## Demo
-
-![Demo 1](images/cohere1.gif)
-![Demo 2](images/cohere2.gif)
-
 ---
 
 ## Two ways to run
@@ -131,7 +126,7 @@ generated/
 
 ```
 app/            Next.js web app (chat UI, in-browser Pyodide chart execution)
-src/            Python research pipeline (generation, evaluation, pipeline, utils, notebook)
+src/            Python research pipeline (generation, evaluation, metrics, pipeline, utils)
 data/           Sample source datasets (COVID-19)
 generated/      Pipeline outputs (chart images are git-ignored; qa_pairs.json kept as a sample)
 images/         README assets (pipeline diagram, demo GIFs)
@@ -175,8 +170,8 @@ This project is being hardened from a hackathon prototype toward a polished open
 
 ## Team
 
+- **Dante Lok** — Project Lead — [LinkedIn](https://www.linkedin.com/in/dante-lok-2a09a5146/)
 - **Avneet Kaur** — [LinkedIn](https://www.linkedin.com/in/avneetkaur97/)
-- **Dante Lok** — [LinkedIn](https://www.linkedin.com/in/dante-lok-2a09a5146/)
 - **Reuben Chagas Fernandes** — [LinkedIn](https://www.linkedin.com/in/reuben-chagas-fernandes/)
 
 ## License
