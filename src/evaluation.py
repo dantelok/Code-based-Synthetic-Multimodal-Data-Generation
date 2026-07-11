@@ -1,14 +1,13 @@
 import base64
+import json
 import os
+from typing import Dict, List
 
 import cohere
-
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
-import json
-from typing import List, Dict
 
 # Cohere's current vision model. The original Aya Vision models this project was
 # built on (c4ai-aya-vision-8b/32b) have since been sunset by Cohere, so the

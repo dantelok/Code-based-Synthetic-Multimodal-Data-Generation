@@ -1,5 +1,7 @@
 # Code-based Synthetic Multimodal Data Generation
 
+[![CI](https://github.com/dantelok/Code-based-Synthetic-Multimodal-Data-Generation/actions/workflows/ci.yml/badge.svg)](https://github.com/dantelok/Code-based-Synthetic-Multimodal-Data-Generation/actions/workflows/ci.yml)
+
 Generate **synthetic chart-and-QA datasets** to train and evaluate Vision-Language Models (VLMs) — using an LLM to write real plotting code, execute it, and then judge the results with a VLM.
 
 > Built for the **Cohere Aya Expedition 2025**. Runs entirely on your own machine with your own Cohere API key — nothing is hosted, nothing leaves your laptop except the API calls you make.
@@ -139,6 +141,18 @@ main.py         Pipeline CLI entrypoint (charts / qa / evaluate / run)
     (`c4ai-aya-vision-8b/32b`). Those models have since been sunset by Cohere, so the
     default judge is the maintained successor. Override with `--vlm-model`.
 
+## Development
+
+```bash
+pip install -r requirements-dev.txt   # runtime deps + pytest + ruff
+
+pytest                                 # run the test suite (no API key needed)
+ruff check .                           # lint the Python code
+```
+
+CI (GitHub Actions) runs the Python lint + tests and the web app's lint + build
+on every push and pull request — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
 ## Roadmap
 
 This project is being hardened from a hackathon prototype toward a polished open-source tool. Planned work:
@@ -147,7 +161,7 @@ This project is being hardened from a hackathon prototype toward a polished open
 - [x] Stop committing generated images; pin Python dependencies
 - [x] Turn the pipeline into a configurable CLI (no more editing globals)
 - [x] Isolate generated code in a subprocess with a timeout (`exec()` hardening)
-- [ ] Tests (pytest) and CI (lint, typecheck, build)
+- [x] Tests (pytest) and CI (lint + tests for Python, lint + build for the web app)
 - [ ] Refactor the large `AiMessage` component into focused hooks/components
 - [ ] Replace substring-based evaluation heuristics with stronger metrics
 - [ ] Publish the generated dataset with a dataset card
