@@ -81,12 +81,22 @@ python main.py run --csv data/covid-19-dataset/usa_county_wise.csv
 
 # Or run stages individually:
 python main.py charts --chart-types "Bar Chart" "Line Chart" --output-size 4
-python main.py qa --output-size 8
+python main.py qa --output-size 8           # ground-truth QA, computed from data (no API key)
 python main.py evaluate            # scores artifacts from a previous run
 
 python main.py --help              # all commands
 python main.py run --help          # all flags for a command
 ```
+
+### Ground-truth QA labels
+
+By default (`--qa-method grounded`) the answers are **computed from the data**
+with pandas and filled into question templates, so every label is correct by
+construction — for a column `cases = [100, 250, 400]`, "total" is 750 and "max"
+is 400, never a plausible-but-wrong LLM guess. This is how chart-QA datasets
+like DVQA / FigureQA / PlotQA are built, and it's what makes the dataset worth
+publishing. Grounded QA needs no API key. Pass `--qa-method llm` to instead have
+the model write answers (convenient, but *not* guaranteed correct).
 
 Common flags: `--csv`, `--output-dir`, `--batch-size`, `--output-size`, `--model`,
 `--vlm-model`, `--max-retries`, `--seed`, `-v/--verbose`. Defaults produce the sample
@@ -95,6 +105,7 @@ COVID-19 dataset run, so `python main.py run` works out of the box once your key
 Under the hood:
 
 - `src/generation.py` — LLM calls: `generate_code_block(...)` (chart code) and `generate_qa_pairs(...)`
+- `src/qa_templates.py` — `generate_grounded_qa(...)`: computes ground-truth QA answers from the data
 - `src/evaluation.py` — chart/QA scoring and `vlm_evaluation(...)` (VLM-as-judge)
 - `src/metrics.py` — the scoring itself: AST analysis of the chart code (does it call
   the right plot for the chart type, render it, label axes, sample rows?) and numeric
@@ -166,7 +177,11 @@ This project is being hardened from a hackathon prototype toward a polished open
 - [x] Refactor the large `AiMessage` component into focused hooks/components
 - [x] Replace substring-based evaluation heuristics with AST analysis, numeric
       grounding, and a structured VLM judge
+- [x] Generate ground-truth QA labels programmatically (computed from data, not
+      LLM-guessed) so the dataset's answers are verifiable
 - [ ] Publish the generated dataset with a dataset card
+- [ ] Research track: external benchmark + a VLM fine-tune showing gains from
+      the synthetic data (the experiment that would make this a paper)
 
 ## Team
 

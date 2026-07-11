@@ -47,6 +47,7 @@ from src.generation import (
     generate_code_block,
     generate_qa_pairs,
 )
+from src.qa_templates import generate_grounded_qa
 from src.utils import clean_code_block, extract_json
 
 logger = logging.getLogger("pipeline")
@@ -212,11 +213,26 @@ def generate_qa(
     output_dir: str = "generated",
     model: str = DEFAULT_TEXT_MODEL,
     max_retries: int = 5,
+    method: str = "grounded",
+    seed: Optional[int] = None,
 ) -> List[Dict]:
-    """Generate QA pairs from the dataset, parse them, and save to disk."""
+    """Generate QA pairs from the dataset, parse them, and save to disk.
+
+    ``method="grounded"`` (default) computes every answer from the data with
+    pandas, so labels are ground truth by construction and no API key is needed.
+    ``method="llm"`` asks the model to write both questions and answers (answers
+    are then *not* guaranteed correct).
+    """
     os.makedirs(output_dir, exist_ok=True)
     qa_path = os.path.join(output_dir, QA_FILENAME)
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path).head(batch_size)
+
+    if method == "grounded":
+        qa_pairs = generate_grounded_qa(df, max_pairs=output_size, seed=seed)
+        with open(qa_path, "w") as fh:
+            json.dump(qa_pairs, fh, indent=4)
+        logger.info("Generated %d ground-truth QA pairs -> %s", len(qa_pairs), qa_path)
+        return qa_pairs
 
     for attempt in range(1, max_retries + 1):
         try:
@@ -224,7 +240,7 @@ def generate_qa(
             qa_pairs = extract_json(raw)
             with open(qa_path, "w") as fh:
                 json.dump(qa_pairs, fh, indent=4)
-            logger.info("Generated %d QA pairs -> %s (attempt %d)", len(qa_pairs), qa_path, attempt)
+            logger.info("Generated %d QA pairs (llm) -> %s (attempt %d)", len(qa_pairs), qa_path, attempt)
             return qa_pairs
         except Exception as exc:  # noqa: BLE001
             logger.warning("QA generation attempt %d/%d failed: %s", attempt, max_retries, exc)

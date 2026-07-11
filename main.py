@@ -57,8 +57,12 @@ def build_parser() -> argparse.ArgumentParser:
     # qa
     p_qa = sub.add_parser("qa", help="Generate question-answer pairs.")
     _add_common(p_qa)
-    p_qa.add_argument("--model", default=DEFAULT_TEXT_MODEL, help="Cohere text model for QA generation.")
-    p_qa.add_argument("--max-retries", type=int, default=5, help="Retries on failure.")
+    p_qa.add_argument("--qa-method", choices=["grounded", "llm"], default="grounded",
+                      help="grounded = answers computed from data (ground truth, no API key); "
+                           "llm = model writes answers (not guaranteed correct).")
+    p_qa.add_argument("--model", default=DEFAULT_TEXT_MODEL, help="Cohere text model (llm method only).")
+    p_qa.add_argument("--max-retries", type=int, default=5, help="Retries on failure (llm method only).")
+    p_qa.add_argument("--seed", type=int, default=None, help="Seed for deterministic grounded QA.")
 
     # evaluate
     p_eval = sub.add_parser("evaluate", help="Evaluate previously generated artifacts.")
@@ -69,6 +73,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_run = sub.add_parser("run", help="Full pipeline: charts -> qa -> evaluate.")
     _add_common(p_run)
     p_run.add_argument("--chart-types", nargs="+", default=DEFAULT_CHART_TYPES, help="Chart types to generate.")
+    p_run.add_argument("--qa-method", choices=["grounded", "llm"], default="grounded",
+                       help="QA answer source (see the `qa` command).")
     p_run.add_argument("--model", default=DEFAULT_TEXT_MODEL, help="Cohere text model.")
     p_run.add_argument("--vlm-model", default=DEFAULT_VLM_MODEL, help="Cohere vision model used as judge.")
     p_run.add_argument("--max-retries", type=int, default=5, help="Retries per generation step.")
@@ -85,12 +91,16 @@ def main(argv=None) -> int:
         datefmt="%H:%M:%S",
     )
 
-    # Fail fast with a friendly message if the API key is missing.
-    try:
-        ensure_api_key()
-    except RuntimeError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
+    # Fail fast with a friendly message if a command that calls the API is
+    # missing a key. Grounded QA runs fully offline, so `qa --qa-method grounded`
+    # is exempt.
+    qa_needs_key = args.command == "qa" and getattr(args, "qa_method", "grounded") == "llm"
+    if args.command in {"charts", "evaluate", "run"} or qa_needs_key:
+        try:
+            ensure_api_key()
+        except RuntimeError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
 
     if args.command == "charts":
         generate_charts(
@@ -102,6 +112,7 @@ def main(argv=None) -> int:
         generate_qa(
             args.csv, args.batch_size, args.output_size,
             output_dir=args.output_dir, model=args.model, max_retries=args.max_retries,
+            method=args.qa_method, seed=args.seed,
         )
     elif args.command == "evaluate":
         report = run_evaluation(
@@ -118,6 +129,7 @@ def main(argv=None) -> int:
         generate_qa(
             args.csv, args.batch_size, args.output_size,
             output_dir=args.output_dir, model=args.model, max_retries=args.max_retries,
+            method=args.qa_method, seed=args.seed,
         )
         report = run_evaluation(
             args.csv, args.batch_size, args.output_size,
