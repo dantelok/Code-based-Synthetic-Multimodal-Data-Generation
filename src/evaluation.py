@@ -9,9 +9,6 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-# Cohere's current vision model. The original Aya Vision models this project was
-# built on (c4ai-aya-vision-8b/32b) have since been sunset by Cohere, so the
-# default is the maintained successor. Override with --vlm-model if needed.
 DEFAULT_VLM_MODEL = "command-a-vision-07-2025"
 
 
