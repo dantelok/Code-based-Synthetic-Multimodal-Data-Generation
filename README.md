@@ -162,7 +162,7 @@ This project is being hardened from a hackathon prototype toward a polished open
 - [x] Turn the pipeline into a configurable CLI (no more editing globals)
 - [x] Isolate generated code in a subprocess with a timeout (`exec()` hardening)
 - [x] Tests (pytest) and CI (lint + tests for Python, lint + build for the web app)
-- [ ] Refactor the large `AiMessage` component into focused hooks/components
+- [x] Refactor the large `AiMessage` component into focused hooks/components
 - [ ] Replace substring-based evaluation heuristics with stronger metrics
 - [ ] Publish the generated dataset with a dataset card
 
