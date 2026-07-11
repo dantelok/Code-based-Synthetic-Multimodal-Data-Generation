@@ -111,7 +111,11 @@ generated/
 └── qa_pairs.json            # generated QA pairs (a sample is committed)
 ```
 
-> ⚠️ **Security:** the pipeline executes LLM-generated Python with `exec()`. In the web app this is sandboxed by Pyodide, but the Python pipeline runs it in your local process. Only run it on data and prompts you trust. Hardening this (restricted namespace, timeouts, subprocess isolation) is on the roadmap.
+> ⚠️ **Security:** the pipeline executes LLM-generated Python. That code runs in an
+> isolated subprocess with a wall-clock timeout (and a CPU-time limit on POSIX), so a
+> hang or crash is bounded. This is not a full security sandbox — the code still has
+> normal filesystem/network access — so only run it on data and prompts you trust.
+> (The web app runs generated code in the browser via Pyodide, which is sandboxed.)
 
 ---
 
@@ -142,7 +146,7 @@ This project is being hardened from a hackathon prototype toward a polished open
 - [x] Remove hardcoded API keys; load from environment / `.env`
 - [x] Stop committing generated images; pin Python dependencies
 - [x] Turn the pipeline into a configurable CLI (no more editing globals)
-- [ ] Sandbox `exec()` of generated code (restricted namespace + timeout)
+- [x] Isolate generated code in a subprocess with a timeout (`exec()` hardening)
 - [ ] Tests (pytest) and CI (lint, typecheck, build)
 - [ ] Refactor the large `AiMessage` component into focused hooks/components
 - [ ] Replace substring-based evaluation heuristics with stronger metrics

@@ -11,16 +11,21 @@ Output layout under ``output_dir`` (default: ``generated/``)::
     ├── chart_code/              # the LLM-generated code for each chart type
     └── qa_pairs.json            # generated question-answer pairs
 
-.. warning::
-   ``generate_charts`` executes LLM-generated Python with ``exec()`` in the
-   current process. It is *not* sandboxed. Only run it on data and prompts you
-   trust. Hardening this is tracked on the project roadmap.
+.. note::
+   ``generate_charts`` executes LLM-generated Python. That code runs in an
+   isolated **subprocess** with a wall-clock timeout (and a CPU-time limit on
+   POSIX), so a hang or crash is bounded and cannot take down the pipeline.
+   This is not a full security sandbox — the code still has normal filesystem
+   and network access — so only run it on data and prompts you trust.
 """
 
 import json
 import logging
 import os
 import random
+import subprocess
+import sys
+import tempfile
 from typing import Dict, List, Optional
 
 import matplotlib
@@ -78,6 +83,59 @@ def _canonical_chart_key(slug: str) -> str:
     return slug
 
 
+DEFAULT_EXEC_TIMEOUT = 60  # seconds
+
+
+def _cpu_limit(seconds: int):
+    """Return a preexec_fn that caps CPU time on POSIX, or None elsewhere."""
+    try:
+        import resource
+    except ImportError:
+        return None  # not available on Windows
+
+    def _set_limits():
+        resource.setrlimit(resource.RLIMIT_CPU, (seconds, seconds))
+
+    return _set_limits
+
+
+def run_generated_code(code: str, batch_size: int, timeout: int = DEFAULT_EXEC_TIMEOUT) -> None:
+    """Execute LLM-generated plotting code in an isolated subprocess.
+
+    The code is run by a fresh ``python`` interpreter with a wall-clock timeout
+    and (on POSIX) a CPU-time limit, so hangs and crashes are bounded and never
+    take down the parent process. A headless matplotlib backend and the expected
+    ``batch_size`` variable are injected as a preamble.
+
+    Raises ``RuntimeError`` on non-zero exit, and ``TimeoutError`` on timeout.
+    """
+    preamble = (
+        "import matplotlib\n"
+        "matplotlib.use('Agg')\n"
+        f"batch_size = {int(batch_size)}\n"
+    )
+    with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as tmp:
+        tmp.write(preamble + code)
+        tmp_path = tmp.name
+    try:
+        proc = subprocess.run(
+            [sys.executable, tmp_path],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            preexec_fn=_cpu_limit(timeout),
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"generated code exited with status {proc.returncode}: "
+                f"{proc.stderr.strip()[-500:]}"
+            )
+    except subprocess.TimeoutExpired as exc:
+        raise TimeoutError(f"generated code exceeded {timeout}s timeout") from exc
+    finally:
+        os.unlink(tmp_path)
+
+
 def generate_charts(
     csv_path: str,
     chart_types: List[str],
@@ -87,6 +145,7 @@ def generate_charts(
     model: str = DEFAULT_TEXT_MODEL,
     max_retries: int = 5,
     seed: Optional[int] = None,
+    timeout: int = DEFAULT_EXEC_TIMEOUT,
 ) -> Dict[str, bool]:
     """Generate and render charts for each chart type, with retries.
 
@@ -119,9 +178,8 @@ def generate_charts(
                 with open(code_path, "w") as fh:
                     fh.write(clean_code)
 
-                # Execute in a dedicated namespace (NOT a security sandbox).
-                exec_globals = {"__builtins__": __builtins__, "batch_size": batch_size}
-                exec(clean_code, exec_globals)  # noqa: S102 - see module warning
+                # Execute in an isolated subprocess with a timeout.
+                run_generated_code(clean_code, batch_size, timeout=timeout)
 
                 logger.info("  ✓ %s succeeded on attempt %d", chart_type, attempt)
                 success = True
