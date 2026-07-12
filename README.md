@@ -106,6 +106,7 @@ Under the hood:
 
 - `src/generation.py` — LLM calls: `generate_code_block(...)` (chart code) and `generate_qa_pairs(...)`
 - `src/qa_templates.py` — `generate_grounded_qa(...)`: computes ground-truth QA answers from the data
+- `src/render.py` — deterministic matplotlib chart rendering (for the dataset build)
 - `src/evaluation.py` — chart/QA scoring and `vlm_evaluation(...)` (VLM-as-judge)
 - `src/metrics.py` — the scoring itself: AST analysis of the chart code (does it call
   the right plot for the chart type, render it, label axes, sample rows?) and numeric
@@ -130,6 +131,30 @@ generated/
 > hang or crash is bounded. This is not a full security sandbox — the code still has
 > normal filesystem/network access — so only run it on data and prompts you trust.
 > (The web app runs generated code in the browser via Pyodide, which is sandboxed.)
+
+### Building the publishable dataset
+
+`build_hf_dataset.py` assembles a **multi-domain chart-QA dataset with verifiable
+labels**. For each source it renders charts deterministically and generates
+ground-truth QA over the *same* slice, so every answer is answerable from the
+image and correct by construction — entirely offline, no API key.
+
+```bash
+pip install -r requirements-dataset.txt
+
+# download the CC BY 4.0 sources into data/sources/ first (see DATASET_CARD.md):
+#   owid-co2-data.csv · online_retail.csv · listings.csv
+python build_hf_dataset.py --source-dir data/sources --out generated/hf \
+    --charts-per-domain 600 --qa-per-chart 7 --seed 0
+
+# assemble a Hugging Face dataset (train/test) and optionally publish:
+python build_hf_dataset.py --source-dir data/sources --hf-out generated/hf_dataset \
+    --push <user>/<dataset-name>
+```
+
+Sources (all **CC BY 4.0**): Our World in Data (climate), UCI Online Retail
+(e-commerce), Inside Airbnb (housing). See [`DATASET_CARD.md`](DATASET_CARD.md)
+for the full card, schema, attribution, and limitations.
 
 ---
 
@@ -179,7 +204,9 @@ This project is being hardened from a hackathon prototype toward a polished open
       grounding, and a structured VLM judge
 - [x] Generate ground-truth QA labels programmatically (computed from data, not
       LLM-guessed) so the dataset's answers are verifiable
-- [ ] Publish the generated dataset with a dataset card
+- [x] Multi-domain dataset builder (`build_hf_dataset.py`) + dataset card, with
+      deterministic rendering so QA is answerable from the image
+- [ ] Publish the built dataset to Hugging Face (run the builder on the CC-BY sources)
 - [ ] Research track: external benchmark + a VLM fine-tune showing gains from
       the synthetic data (the experiment that would make this a paper)
 

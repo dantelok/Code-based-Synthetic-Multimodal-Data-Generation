@@ -40,6 +40,7 @@ def generate_grounded_qa(
     max_pairs: int = 8,
     seed: Optional[int] = None,
     columns: Optional[Sequence[str]] = None,
+    exclude_ops: Optional[Sequence[str]] = None,
 ) -> List[Dict]:
     """Generate up to ``max_pairs`` question-answer pairs with computed answers.
 
@@ -48,12 +49,15 @@ def generate_grounded_qa(
         max_pairs: Maximum number of QA pairs to return.
         seed: Seed for deterministic template selection/ordering.
         columns: Restrict generation to these columns (e.g. the plotted ones).
+        exclude_ops: Operations to skip (e.g. ``{"mode"}`` for pre-aggregated
+            frames where each category appears exactly once).
 
     Returns:
         A list of ``{"question", "answer", "meta"}`` dicts. Every answer is
         computed from ``df`` and is therefore ground truth for that slice.
     """
     rng = random.Random(seed)
+    excluded = set(exclude_ops or ())
 
     if columns:
         keep = [c for c in columns if c in df.columns]
@@ -66,6 +70,8 @@ def generate_grounded_qa(
     candidates: List[Dict] = []
 
     def add(question: str, answer: str, op: str, cols: Sequence[str]) -> None:
+        if op in excluded:
+            return
         candidates.append({"question": question, "answer": answer, "meta": {"op": op, "columns": list(cols)}})
 
     # Whole-column numeric aggregations.

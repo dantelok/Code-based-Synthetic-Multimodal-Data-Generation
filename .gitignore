@@ -59,6 +59,11 @@ src/__pycache__
 # A small sample qa_pairs.json is kept in the repo as an illustrative artifact.
 /generated/cohere_chart_datasets/
 
+# Dataset build: downloaded CC-BY sources and the built HF dataset (large).
+/data/sources/
+/generated/hf/
+/generated/hf_dataset/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

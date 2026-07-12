@@ -1,0 +1,7 @@
+# Extra dependencies for building/publishing the Hugging Face dataset.
+# (The build itself only needs pandas + matplotlib; these are for --hf-out/--push.)
+-r requirements.txt
+datasets>=2.19,<4
+huggingface_hub>=0.23,<1
+pillow>=10,<12
+openpyxl>=3.1,<4   # only if reading the UCI Online Retail .xlsx export
