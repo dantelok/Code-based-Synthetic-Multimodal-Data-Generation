@@ -1,0 +1,14 @@
+# The Next.js app is an optional interactive demo, not the core contribution.
+# Mark it (and its tooling config) as vendored so GitHub's language stats
+# reflect the Python pipeline that is the actual project.
+app/**                linguist-vendored
+components/**          linguist-vendored
+lib/**                 linguist-vendored
+public/**              linguist-vendored
+*.config.mjs           linguist-vendored
+*.config.js            linguist-vendored
+*.config.ts            linguist-vendored
+tsconfig.json          linguist-vendored
+package.json           linguist-vendored
+package-lock.json      linguist-vendored
+components.json        linguist-vendored

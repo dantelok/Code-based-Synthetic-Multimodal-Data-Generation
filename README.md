@@ -19,7 +19,7 @@ The result is a published, multi-domain dataset with **verifiable labels**:
 - 🖼️ **Real chart images** — charts are produced by executing plotting code, not faked; the dataset build renders them deterministically so every question is answerable from the image.
 - 🧑‍⚖️ **VLM-as-judge** — a vision model scores generated QA and returns structured per-item verdicts (`answer_correct` / `question_relevant`).
 - 🌍 **Multi-domain** — climate, e-commerce, and housing, from three CC BY 4.0 sources.
-- 💻 **Two ways to use** — an interactive browser app *or* a command-line pipeline.
+- 💻 **Reproducible pipeline** — a seeded Python CLI builds the entire dataset offline; a browser demo is included as an optional extra.
 - 🔒 **Safe by design** — generated code runs sandboxed (in-browser via Pyodide, or an isolated subprocess with timeouts).
 - ✔️ **Production hygiene** — typed frontend, tested Python, green CI, MIT-licensed.
 
@@ -45,38 +45,9 @@ For the published dataset, answers are computed programmatically from the data �
 
 ---
 
-## Two ways to run
+## The pipeline
 
-This repo contains **two independent parts**. Most people want the first one.
-
-| | What it is | Needs |
-|---|---|---|
-| **1. Web app** | Interactive chat UI: upload a CSV or image, pick chart types, generate charts in your browser | **Node.js only** (Python runs in-browser via Pyodide) |
-| **2. Research pipeline** | Command-line tool that generates + evaluates data, and builds the dataset | **Python** (+ a Cohere API key for the LLM/VLM stages) |
-
-A free Cohere API key (for the app and the LLM-backed pipeline stages): <https://dashboard.cohere.com/api-keys>
-
-### 1. Web app
-
-**Prerequisites:** Node.js 18.17+ and npm.
-
-```bash
-git clone https://github.com/dantelok/Code-based-Synthetic-Multimodal-Data-Generation
-cd Code-based-Synthetic-Multimodal-Data-Generation
-
-npm install
-npm run dev
-```
-
-Open <http://localhost:3000>.
-
-1. Paste your Cohere API key (it stays in your browser — never committed or sent anywhere except Cohere).
-2. Upload a CSV — a sample lives at `data/covid-19-dataset/country_wise_latest.csv`.
-3. Select rows/columns and chart types, then generate. Charts render in-browser.
-
-Image mode: upload an image instead to get VLM analysis and auto-generated Q&A pairs.
-
-### 2. Research pipeline
+The core of the project is a Python command-line pipeline that generates charts, produces ground-truth QA, evaluates them with a VLM judge, and builds the published dataset.
 
 **Prerequisites:** Python 3.10+.
 
@@ -88,7 +59,7 @@ pip install -r requirements.txt
 cp .env.example .env             # then add your Cohere API key
 ```
 
-The pipeline is a CLI (`main.py`) with four subcommands:
+`main.py` has four subcommands:
 
 ```bash
 # Full pipeline: generate charts -> QA pairs -> evaluate
@@ -102,7 +73,19 @@ python main.py evaluate                # scores artifacts from a previous run
 python main.py --help                  # all commands and flags
 ```
 
-Common flags: `--csv`, `--output-dir`, `--batch-size`, `--output-size`, `--model`, `--vlm-model`, `--max-retries`, `--seed`, `-v/--verbose`.
+Common flags: `--csv`, `--output-dir`, `--batch-size`, `--output-size`, `--model`, `--vlm-model`, `--max-retries`, `--seed`, `-v/--verbose`. A free Cohere API key (for the LLM/VLM stages): <https://dashboard.cohere.com/api-keys>.
+
+<details>
+<summary><b>Optional: interactive web demo</b></summary>
+
+A small Next.js app lets you try the idea in a browser — upload a CSV or image, pick chart types, and generate charts in-browser (Python runs via Pyodide). It's a demo, not the core contribution.
+
+```bash
+npm install && npm run dev      # needs Node.js 18.17+, then open http://localhost:3000
+```
+
+Paste your Cohere API key (it stays in your browser), upload a CSV (sample: `data/covid-19-dataset/country_wise_latest.csv`), and generate. Image mode gives VLM analysis + auto-generated Q&A.
+</details>
 
 ---
 
