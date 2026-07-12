@@ -7,11 +7,16 @@ is the property a chart-QA benchmark needs, and it makes the whole build free,
 reproducible, and seed-controlled.
 """
 
+import logging
+
 import matplotlib
 
 matplotlib.use("Agg")  # headless
 
 import matplotlib.pyplot as plt  # noqa: E402
+
+# Quiet matplotlib's informational chatter (e.g. "categorical units" notices).
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 _COLORS = ["#4C72B0", "#55A868", "#C44E52", "#8172B3", "#CCB974", "#64B5CD",
            "#DD8452", "#937860", "#DA8BC3", "#8C8C8C"]

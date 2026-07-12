@@ -46,6 +46,10 @@ SOURCES = [
         "numeric": ["co2", "co2_per_capita", "coal_co2", "oil_co2", "gas_co2",
                     "cement_co2", "population", "gdp", "primary_energy_consumption"],
         "line_x": "year",
+        # OWID's "country" mixes in aggregates (World, continents, income groups);
+        # keep only real countries, whose iso_code is a 3-letter code.
+        "keep_col": "iso_code",
+        "keep_regex": r"^[A-Z]{3}$",
     },
     {
         "domain": "ecommerce",
@@ -58,8 +62,8 @@ SOURCES = [
     {
         "domain": "housing",
         "file": "listings.csv",
-        "source": "Inside Airbnb — listings (CC BY 4.0)",
-        "categorical": ["neighbourhood", "room_type"],
+        "source": "Inside Airbnb — NYC listings (CC BY 4.0)",
+        "categorical": ["neighbourhood_group", "neighbourhood", "room_type"],
         "numeric": ["price", "minimum_nights", "number_of_reviews",
                     "availability_365", "calculated_host_listings_count"],
         "line_x": None,
@@ -102,6 +106,9 @@ def build_one_chart(df: pd.DataFrame, cfg: Dict, rng: random.Random, idx: int,
     seed = rng.randint(0, 2**31 - 1)
     frame: Optional[pd.DataFrame] = None
     cols = None
+    # `mode` is meaningless on pre-aggregated frames; `sum` over a time axis
+    # (a line) is not a natural quantity.
+    excluded_ops = {"mode"}
 
     if chart_type in ("bar", "pie"):
         cat, num = rng.choice(cats), rng.choice(nums)
@@ -120,15 +127,27 @@ def build_one_chart(df: pd.DataFrame, cfg: Dict, rng: random.Random, idx: int,
 
     elif chart_type == "line":
         num = rng.choice(nums)
-        clean = _numeric_frame(df.dropna(subset=[line_x]), [num]).dropna(subset=[num])
+        title = f"{num} over {line_x}"
+        sub = df
+        if cats:  # plot a single entity's trajectory (e.g. one country) — far more natural
+            cat = rng.choice(cats)
+            counts = df[cat].value_counts()
+            counts = counts[counts >= 6]
+            if counts.empty:
+                return []
+            value = rng.choice(counts.index.tolist())
+            sub = df[df[cat] == value]
+            title = f"{num} over {line_x} — {value}"
+        clean = _numeric_frame(sub.dropna(subset=[line_x]), [num]).dropna(subset=[num])
         agg = clean.groupby(line_x)[num].mean().sort_index()
         if agg.shape[0] < 4:
             return []
         agg = agg.tail(rng.randint(6, 12))  # a readable recent window
-        render_line(agg.index, agg.values, line_x, num, f"{num} over {line_x}", path)
+        render_line(agg.index, agg.values, line_x, num, title, path)
         # x as string keeps QA about "which x has highest y", not "total year"
         frame = pd.DataFrame({line_x: agg.index.astype(str), num: agg.values})
         cols = [line_x, num]
+        excluded_ops = {"mode", "sum"}
 
     else:  # scatter
         nx, ny = rng.sample(nums, 2)
@@ -141,7 +160,7 @@ def build_one_chart(df: pd.DataFrame, cfg: Dict, rng: random.Random, idx: int,
         cols = [nx, ny]
 
     qa = generate_grounded_qa(frame, max_pairs=qa_per_chart, columns=cols,
-                              exclude_ops={"mode"}, seed=seed)
+                              exclude_ops=excluded_ops, seed=seed)
     return [
         {
             "file_name": file_name,
@@ -164,6 +183,11 @@ def build_source(cfg: Dict, source_dir: str, images_dir: str, charts: int,
         logger.warning("SKIP %s: %s not found (download it into %s).", cfg["domain"], cfg["file"], source_dir)
         return []
     df = pd.read_csv(path, low_memory=False)
+    keep_col = cfg.get("keep_col")
+    if keep_col and keep_col in df.columns:
+        before = len(df)
+        df = df[df[keep_col].astype(str).str.match(cfg["keep_regex"])]
+        logger.info("%s: filtered %s on %s -> %d/%d rows kept", cfg["domain"], keep_col, cfg["keep_regex"], len(df), before)
     rng = random.Random(f"{seed}-{cfg['domain']}")
     records: List[Dict] = []
     built = 0
