@@ -71,6 +71,16 @@ The whole process is offline, seeded, and reproducible — no API calls. See
 
 `train` / `test` (90 / 10), split with a fixed seed.
 
+## Baseline
+
+A strong off-the-shelf VLM (Cohere `command-a-vision-07-2025`), zero-shot on a
+120-example test sample: **79%** on structural questions (which category /
+comparison / count), **22%** on questions requiring an exact numeric value,
+**40%** overall. The gap reflects a known weakness of current VLMs — reading
+chart structure is easier than reading or computing precise values — which is
+exactly what verifiable labels let you measure. Reproduce with
+`evaluate_baseline.py` in the [source repo](https://github.com/dantelok/Code-based-Synthetic-Multimodal-Data-Generation).
+
 ## Source data & attribution
 
 All sources are Creative Commons Attribution 4.0 (CC BY 4.0); this derived

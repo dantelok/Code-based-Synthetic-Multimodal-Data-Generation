@@ -114,6 +114,22 @@ python build_hf_dataset.py --source-dir data/sources --charts-per-domain 600 --s
 
 **Published:** [🤗 dantelok/multidomain-chart-qa](https://huggingface.co/datasets/dantelok/multidomain-chart-qa) — ~12,600 QA over ~1,800 charts (bar / pie / line / scatter), balanced across climate, e-commerce, and housing, split 90/10 train/test. Full schema, attribution, and limitations are in [`DATASET_CARD.md`](DATASET_CARD.md).
 
+### Baseline
+
+Because the labels are ground truth, the test split doubles as a **benchmark**. A strong off-the-shelf VLM (Cohere `command-a-vision-07-2025`), **zero-shot** on a 120-example sample:
+
+| Question type | Accuracy |
+|---|---|
+| **Structural** — which category / comparison / count (`argmax`, `argmin`, `compare`, `count`) | **79%** |
+| **Value** — read or compute an exact number (`max`, `min`, `sum`, `mean`, `lookup`) | **22%** |
+| **Overall** | **40%** |
+
+The gap is the point: the model reads chart *structure* well but struggles to read or compute precise *values* off a chart — a known weakness of current VLMs, and exactly what a verifiable-label chart-QA set is built to measure. Reproduce with:
+
+```bash
+python evaluate_baseline.py --hf-dir generated/hf_dataset --limit 120   # needs COHERE_API_KEY
+```
+
 ---
 
 ## Project structure
