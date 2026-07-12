@@ -1,6 +1,7 @@
 # Code-based Synthetic Multimodal Data Generation
 
 [![CI](https://github.com/dantelok/Code-based-Synthetic-Multimodal-Data-Generation/actions/workflows/ci.yml/badge.svg)](https://github.com/dantelok/Code-based-Synthetic-Multimodal-Data-Generation/actions/workflows/ci.yml)
+[![Dataset on Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Dataset-multidomain--chart--qa-yellow)](https://huggingface.co/datasets/dantelok/multidomain-chart-qa)
 
 Generate **synthetic chart-and-QA datasets** to train and evaluate Vision-Language Models (VLMs) — using an LLM to write real plotting code, execute it, and then judge the results with a VLM.
 
@@ -156,6 +157,9 @@ Sources (all **CC BY 4.0**): Our World in Data (climate), UCI Online Retail
 (e-commerce), Inside Airbnb (housing). See [`DATASET_CARD.md`](DATASET_CARD.md)
 for the full card, schema, attribution, and limitations.
 
+**Published dataset** (~12,600 QA over ~1,800 charts, train/test):
+[🤗 dantelok/multidomain-chart-qa](https://huggingface.co/datasets/dantelok/multidomain-chart-qa)
+
 ---
 
 ## Project structure
@@ -206,7 +210,8 @@ This project is being hardened from a hackathon prototype toward a polished open
       LLM-guessed) so the dataset's answers are verifiable
 - [x] Multi-domain dataset builder (`build_hf_dataset.py`) + dataset card, with
       deterministic rendering so QA is answerable from the image
-- [ ] Publish the built dataset to Hugging Face (run the builder on the CC-BY sources)
+- [x] Publish the built dataset to Hugging Face
+      ([dantelok/multidomain-chart-qa](https://huggingface.co/datasets/dantelok/multidomain-chart-qa))
 - [ ] Research track: external benchmark + a VLM fine-tune showing gains from
       the synthetic data (the experiment that would make this a paper)
 
