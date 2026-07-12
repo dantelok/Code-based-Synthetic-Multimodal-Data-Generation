@@ -196,7 +196,7 @@ on every push and pull request — see [`.github/workflows/ci.yml`](.github/work
 
 ## Roadmap
 
-This project is being hardened from a hackathon prototype toward a polished open-source tool. Planned work:
+This project was hardened from a hackathon prototype into a polished open-source tool with a published, verifiable-label dataset:
 
 - [x] Remove hardcoded API keys; load from environment / `.env`
 - [x] Stop committing generated images; pin Python dependencies
@@ -212,8 +212,6 @@ This project is being hardened from a hackathon prototype toward a polished open
       deterministic rendering so QA is answerable from the image
 - [x] Publish the built dataset to Hugging Face
       ([dantelok/multidomain-chart-qa](https://huggingface.co/datasets/dantelok/multidomain-chart-qa))
-- [ ] Research track: external benchmark + a VLM fine-tune showing gains from
-      the synthetic data (the experiment that would make this a paper)
 
 ## Team
 
